@@ -9,7 +9,7 @@ GPLv3+: GNU GPL version 3 or later (http://gnu.org/licenses/gpl.html).
 
 Installation
 ------------
-Just download the two files `gdrive-dl` and `gdown.pl` and give them the proper permissions, then use `gdrive-dl` as shown below in the Help section.
+Just download the two files `gdrive-dl` and `gdown.pl` and give them the proper permissions, then use `gdrive-dl` as shown below in the Help (Usage) section.
 
 
 Requirements
@@ -23,7 +23,7 @@ Requirements
 * perl (for confirmation)
 
 
-Help
+Help (Usage)
 ----
 <pre>Usage: gdrive-dl [OPTION]... URL...
 Download from Google Drive an entire folder recursively,
@@ -95,10 +95,12 @@ it's stable enough for a very normal end user that expects no errors.<br/>
 Its version number (a date) indicates when it has become a stable
 version.
 
+The first stable release will be in February, 2015.<br/>
+Any contributions are  appreciated.
 
 Authors
 ------------
- Nour eddin (noureddin95@gmail.com)
+ Nour eddin M. (noureddin95@gmail.com)
 
 Please notice that `gdown.pl` is not developed by the author of `gdrive-dl`; it's developed by Circulosmeos. See below.
 
