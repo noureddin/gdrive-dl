@@ -102,7 +102,7 @@ Authors
 
 Please notice that `gdown.pl` is not developed by the author of `gdrive-dl`; it's developed by Circulosmeos. See below.
 
-Thanks,<br/>
- http://www.funbutlearn.com/2013/02/direct-download-link-to-your-google.html<br/>
- http://circulosmeos.wordpress.com/2014/04/12/google-drive-direct-download-of-big-files
+Resources used in `gdrive-dl`<br/>
+-  http://www.funbutlearn.com/2013/02/direct-download-link-to-your-google.html<br/>
+-  http://circulosmeos.wordpress.com/2014/04/12/google-drive-direct-download-of-big-files
 
