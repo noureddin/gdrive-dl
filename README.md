@@ -41,10 +41,10 @@ General Options:
   -cu, --check-update    check if updated or not
 
 Selection Options:
-  -ch, --choose=NAME    choose a file or folder by its NAME,
-                        and nothing else will be downloaded
-  -ex, --exclude=NAME   exclude a file or folder by its NAME,
-                        and everything else will be downloaded
+  -ch, --choose=NAME     choose a file or folder by its NAME,
+                         and nothing else will be downloaded
+  -ex, --exclude=NAME    exclude a file or folder by its NAME,
+                         and everything else will be downloaded
 
 Output Options:
   -q,  --quiet           suppress all normal output
@@ -54,15 +54,15 @@ Output Options:
 Confirming Options:
   to get the big files that google does not allow to download them
   directly without confirmation.
-  
+
   -c,  --confirm[=NAME]  if no NAME is given, download all files
-                        that need confirmation in the current
-                        folder (recursively).
-                        if a NAME of a file is given, then
-                        confirm and download this file.
-  -cc, --confirm-check  only display the relative path of the files
-                        that need confirmation in the current folder
-                        (recursively).
+                         that need confirmation in the current
+                         folder (recursively).
+                         if a NAME of a file is given, then
+                         confirm and download this file.
+  -cc, --confirm-check   only display the relative path of the files
+                         that need confirmation in the current folder
+                         (recursively).
 
 Notice that both Choose and Exclude can be used many times in the same time
 to choose or exclude many files or folders.
