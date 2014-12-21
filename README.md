@@ -38,7 +38,7 @@ General Options:
   -V,  --version         display version information
   -L,  --license         display license information
   -U,  --update          update to the latest version
-  -cu, --check-update    check if updated or not
+  -cu, --check-update    check if up-to-date or not
 
 Selection Options:
   -ch, --choose=NAME     choose a file or folder by its NAME,
