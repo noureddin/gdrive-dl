@@ -4,16 +4,16 @@ Google Drive Public Folder Mass Downloader
 
 
 License
-=======
+-------
 GPLv3+: GNU GPL version 3 or later (http://gnu.org/licenses/gpl.html).
 
 Installation
-=============
+------------
 Just download the two files `gdrive-dl` and `gdown.pl` and use them directly, after giving them the proper permissions.
 
 
 Requirements
-============
+------------
 * bash
 * coreutils
 * ncurses
@@ -24,7 +24,7 @@ Requirements
 
 
 Help
-====
+----
 <pre>Usage: gdrive-dl [OPTION]... URL...
 Download from Google Drive an entire folder recursively,
 with all it's files and sub-folders.
@@ -76,7 +76,7 @@ Also, you must use the equal sign '=' with both short and long options,
 if you assign them a value.</pre>
 
 The Stages (The develepment cycle)
-==================================
+----------------------------------
 It's Unstable -> Testing -> Stable.
 
 Unstable is the only version to be modified by the developers
@@ -96,8 +96,8 @@ Its version number (a date) indicates when it has become a stable
 version.
 
 
-Author
-======
+Authors
+------------
  Nour eddin (noureddin95@gmail.com)
 
 Please notice that `gdown.pl` is not developed by the author of `gdrive-dl`; it's developed by Circulosmeos. See below.
