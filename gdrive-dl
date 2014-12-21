@@ -274,15 +274,20 @@ do
 		help #should be once
 		;;
 	'--update'|'-u'|'-U')
-		echo -n # not implemented yet
-    #echo -n 'Updating to '
-    #wget '' -O - | grep ${_BRANCH_} && wget '' -O ${_SCRIPT_} || echo 'N/A'
+	# to be improved
+    	echo -n 'Updating to '
+	    if wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}"
+    	then
+	      ( wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/gdrive-dl' -O ${_SCRIPT_} & )
+	      exit
+    	else
+	      	echo 'N/A'
+	    fi
 		;;
   '--check-update'|'-cu')
-    echo -n # not implemented yet
-    #echo -n 'The latest version is '
-    #wget '' -O - | grep ${_BRANCH_} || echo 'N/A'
-    #echo 'Your version is       '"${_VERSION_}"
+	    echo -n 'The latest version is '
+    	wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}" || echo 'N/A'
+    	echo 'Your version is       '"${_VERSION_}"
 		;;
 	'--version'|'-V')
 		echo $_VERSION_
