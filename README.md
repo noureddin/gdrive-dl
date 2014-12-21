@@ -9,7 +9,7 @@ GPLv3+: GNU GPL version 3 or later (http://gnu.org/licenses/gpl.html).
 
 Installation
 ------------
-Just download the two files `gdrive-dl` and `gdown.pl` and use them directly, after giving them the proper permissions.
+Just download the two files `gdrive-dl` and `gdown.pl` and give them the proper permissions, then use `gdrive-dl` as shown below in the Help section.
 
 
 Requirements
