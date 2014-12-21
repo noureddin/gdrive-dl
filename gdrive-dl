@@ -12,21 +12,17 @@ _BRANCH_='u' # used for update. where u: unstable, t: testing, s: stable
 #   3: debug,     # output as much informtion as you can
 #
 
-# Thanks,
-# http://www.funbutlearn.com/2013/02/direct-download-link-to-your-google.html
-# http://circulosmeos.wordpress.com/2014/04/12/google-drive-direct-download-of-big-files
-
 for i in "$@"  # checking debug mode
 do
-	case "$i" in
-	'-d'|'--debug')
-		set -vx
-		_MODE_=3
+  case "$i" in
+  '-d'|'--debug')
+    set -vx
+    _MODE_=3
     echo "_VERSION_ is $_VERSION_" >/dev/null
     echo "_BRANCH_ is $_BRANCH_" >/dev/null
-		for i in "$@";do echo "$i" >/dev/null;done
-		;;
-	esac
+    for i in "$@";do echo "$i" >/dev/null;done
+    ;;
+  esac
 done
 
 
@@ -41,119 +37,117 @@ _TEMP_='/tmp'
 
 function download()
 {
-	# $1 is $ID, $2 is $TITLE/$FILENAME, and $3 is $_MODE_
-	if [ x$3 == x1 ] # quiet
-	then
-		wget -q -c "http://drive.google.com/uc?id=$1&e=download" -O "$2"
-	elif [ x$3 == x2 ] || [ x$3 == x3 ] # verbose or debug
-	then
+  # $1 is $ID, $2 is $TITLE/$FILENAME, and $3 is $_MODE_
+  if [ x$3 == x1 ] # quiet
+  then
+    wget -q -c "http://drive.google.com/uc?id=$1&e=download" -O "$2"
+  elif [ x$3 == x2 ] || [ x$3 == x3 ] # verbose or debug
+  then
     echo Getting "$2"
-		wget -c "http://drive.google.com/uc?id=$1&e=download" -O "$2"
-	else # neither quiet, nor verbose, i.e. normal
-		wget -nv -c "http://drive.google.com/uc?id=$1&e=download" -O "$2"
+    wget -c "http://drive.google.com/uc?id=$1&e=download" -O "$2"
+  else # neither quiet, nor verbose, i.e. normal
+    wget -nv -c "http://drive.google.com/uc?id=$1&e=download" -O "$2"
     #echo "http://drive.google.com/uc?id=$1&e=download" > "$2" # for test
-		#echo Getting "$1" "$2" # for test only
-		#echo Getting "$2" # for test only
-		#echo "$1" > "$2" # for test only
-	fi
-
+    #echo Getting "$1" "$2" # for test only
+    #echo Getting "$2" # for test only
+    #echo "$1" > "$2" # for test only
+  fi
 }
 
 ## ## Confirming Function
 
-	# Thanks, Circulosmeos.
-	# Written firstly by Circulosmeos in 04-2014 in Perl.
-	# Modified by me ( the core author of gdrive-dl ) to be in bash.
-	# http://circulosmeos.wordpress.com/2014/04/12/google-drive-direct-download-of-big-files
-	# Distributed under GPL 3 (http://www.gnu.org/licenses/gpl-3.0.html)
+  # Thanks, Circulosmeos.
+  # Written firstly by Circulosmeos in 04-2014 in Perl.
+  # Modified by me ( the core author of gdrive-dl ) to be in bash.
+  # http://circulosmeos.wordpress.com/2014/04/12/google-drive-direct-download-of-big-files
+  # Distributed under GPL 3 (http://www.gnu.org/licenses/gpl-3.0.html)
 
 function download-again()
 {
-	# For Confirming files
+  # For Confirming files
   # not done yet
   
-	# $1 is $URL, $2 is $TITLE/$FILENAME, $3 is $_MODE_
-	if [ x$3 == x1 ] # quiet
-	then
-		wget -q --load-cookie ${_TEMP_}/cookie.txt --save-cookie ${_TEMP_}/cookie.txt "$1" -O "$2"
-	elif [ x$3 == x2 ] || [ x$3 == x3 ] # verbose, or debug
-	then
-		wget --load-cookie ${_TEMP_}/cookie.txt --save-cookie ${_TEMP_}/cookie.txt "$1" -O "$2"
-	else # neither quiet, nor verbose, i.e. normal
-		wget -nv --load-cookie ${_TEMP_}/cookie.txt --save-cookie ${_TEMP_}/cookie.txt "$1" -O "$2"
-	fi
-
+  # $1 is $URL, $2 is $TITLE/$FILENAME, $3 is $_MODE_
+  if [ x$3 == x1 ] # quiet
+  then
+    wget -q --load-cookie ${_TEMP_}/cookie.txt --save-cookie ${_TEMP_}/cookie.txt "$1" -O "$2"
+  elif [ x$3 == x2 ] || [ x$3 == x3 ] # verbose, or debug
+  then
+    wget --load-cookie ${_TEMP_}/cookie.txt --save-cookie ${_TEMP_}/cookie.txt "$1" -O "$2"
+  else # neither quiet, nor verbose, i.e. normal
+    wget -nv --load-cookie ${_TEMP_}/cookie.txt --save-cookie ${_TEMP_}/cookie.txt "$1" -O "$2"
+  fi
 }
 
 function confirm()
 {
-	# not done yet
-	# $1 is $TITLE/$FILENAME
-	URL=$(grep '/uc?export=download' "$1" | sed 's|.*uc?export=download|uc?export=download|' | sed 's|\".*||')
-	
-	download-again 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$1"
-	
-	while [ $(stat -c %s "$1") -lt 100000 ] # only if the file isn't the download yet
-	do
-	    if grep 'href="/uc?export=download' "$1"
-	    then
-	        URL='https://docs.google.com'$( grep 'href="/uc?export=download' "$1" | sed 's|.*href="/uc?export=|/uc?export=|' | sed 's/".*//' )
-			URL=${URL//'&amp;'/'&'}
-		fi
-	    download-again "$URL" "$1"
-	done
+  # not done yet
+  # $1 is $TITLE/$FILENAME
+  URL=$(grep '/uc?export=download' "$1" | sed 's|.*uc?export=download|uc?export=download|' | sed 's|\".*||')
+  
+  download-again 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$1"
+  
+  while [ $(stat -c %s "$1") -lt 100000 ] # only if the file isn't the download yet
+  do
+    if grep 'href="/uc?export=download' "$1"
+    then
+      URL='https://docs.google.com'$( grep 'href="/uc?export=download' "$1" | sed 's|.*href="/uc?export=|/uc?export=|' | sed 's/".*//' )
+      URL=${URL//'&amp;'/'&'}
+    fi
+    download-again "$URL" "$1"
+  done
 }
 
 ## ## END Confirming Function
 
 function title_escape()
 {
-	TITLE="${TITLE//'&amp;'/'&'}" # fix &
-	TITLE="${TITLE//'/'/'-'}" # replace / with -
-	TITLE="${TITLE//':'/'-'}" # replace : with -
-	TITLE="${TITLE//'&#39;'/"'"}" # replace &#39; with '
-	TITLE="${TITLE//'&quot;'/"\""}" # replace &quot; with "
-	TITLE="`echo \"$TITLE\" | sed 's/^ *//' | sed 's/ *$//' `" # trim beginning & ending spaces - if found
+  TITLE="${TITLE//'&amp;'/'&'}" # fix &
+  TITLE="${TITLE//'/'/'-'}" # replace / with -
+  TITLE="${TITLE//':'/'-'}" # replace : with -
+  TITLE="${TITLE//'&#39;'/"'"}" # replace &#39; with '
+  TITLE="${TITLE//'&quot;'/"\""}" # replace &quot; with "
+  TITLE="`echo \"$TITLE\" | sed 's/^ *//' | sed 's/ *$//' `" # trim beginning & ending spaces - if found
 }
 
 function chex() # Choose and Exclude
 {
-	if [ ${#_CHOOSE_[@]} -ne 0 ] &&  [ ${#_EXCLUDE_[@]} -ne 0 ]
-	# if the user used CHOOSE and EXCLUDE at the same time
-	then
-		echo 'ERROR: Choose and Exclude are used at the same time.'
-		exit 2
-	fi
-	
-	if [ ${#_CHOOSE_[@]} -ne 0 ]
-	# the user used CHOOSE
-	then
+  if [ ${#_CHOOSE_[@]} -ne 0 ] &&  [ ${#_EXCLUDE_[@]} -ne 0 ]
+  # if the user used CHOOSE and EXCLUDE at the same time
+  then
+    echo 'ERROR: Choose and Exclude are used at the same time.'
+    exit 2
+  fi
+  
+  if [ ${#_CHOOSE_[@]} -ne 0 ]
+  # the user used CHOOSE
+  then
     if ! for i in "${_CHOOSE_[@]}";do echo $i;done | grep -q ^"$TITLE"$
     # $TITLE is NOT in $_CHOOSE_
     then
       continue
     fi
-	fi
-	
-	if [ ${#_EXCLUDE_[@]} -ne 0 ] #&& [ ${_EXCLUDE_[@]/$TITLE/} != ${_EXCLUDE_[@]} ] 
-	# the user used EXCLUDE and $TITLE is in $_EXCLUDE_
-	then
+  fi
+  
+  if [ ${#_EXCLUDE_[@]} -ne 0 ] #&& [ ${_EXCLUDE_[@]/$TITLE/} != ${_EXCLUDE_[@]} ] 
+  # the user used EXCLUDE and $TITLE is in $_EXCLUDE_
+  then
     if for i in "${_EXCLUDE_[@]}";do echo $i;done | grep -q ^"$TITLE"$
     # $TITLE is in $_EXCLUDE_
     then 
       continue
     fi
-	fi
+  fi
 }
 
 function output()
 {
-	tput bold;echo $@;tput sgr0
+  tput bold;echo $@;tput sgr0
 }
 
 function help()
 {
-	echo "Usage: $(basename "${BASH_SOURCE[0]}") [OPTION]... URL...
+  echo "Usage: $(basename "${BASH_SOURCE[0]}") [OPTION]... URL...
 Download from Google Drive an entire folder recursively,
 with all it's files and sub-folders.
 It can, also, download the big files that Google does not allow
@@ -162,35 +156,35 @@ URL can be a folder URL or a file URL.
 Example: $0 https://drive.google.com/folderview?id=0BXXXXXXXXXXX
 
 General Options:
-  -h,  --help            display this help text
-  -V,  --version         display version information
-  -L,  --license         display license information
-  -U,  --update          update to the latest version
-  -cu, --check-update    check if updated or not
+-h,  --help            display this help text
+-V,  --version         display version information
+-L,  --license         display license information
+-U,  --update          update to the latest version
+-cu, --check-update    check if updated or not
 
 Selection Options:
-  -ch, --choose=NAME    choose a file or folder by its NAME,
-                        and nothing else will be downloaded
-  -ex, --exclude=NAME   exclude a file or folder by its NAME,
-                        and everything else will be downloaded
+-ch, --choose=NAME    choose a file or folder by its NAME,
+and nothing else will be downloaded
+-ex, --exclude=NAME   exclude a file or folder by its NAME,
+and everything else will be downloaded
 
 Output Options:
-  -q,  --quiet           suppress all normal output
-  -v,  --verbose         output more information than usual
-  -d,  --debug           output much debugging information
+-q,  --quiet           suppress all normal output
+-v,  --verbose         output more information than usual
+-d,  --debug           output much debugging information
 
 Confirming Options:
-  to get the big files that google does not allow to download them
-  directly without confirmation.
-  
-  -c,  --confirm[=NAME]  if no NAME is given, download all files
-                        that need confirmation in the current
-                        folder (recursively).
-                        if a NAME of a file is given, then
-                        confirm and download this file.
-  -cc, --confirm-check  only display the relative path of the files
-                        that need confirmation in the current folder
-                        (recursively).
+to get the big files that google does not allow to download them
+directly without confirmation.
+
+-c,  --confirm[=NAME]  if no NAME is given, download all files
+that need confirmation in the current
+folder (recursively).
+if a NAME of a file is given, then
+confirm and download this file.
+-cc, --confirm-check  only display the relative path of the files
+that need confirmation in the current folder
+(recursively).
 
 Notice that both Choose and Exclude can be used many times in the same time
 to choose or exclude many files or folders.
@@ -215,167 +209,167 @@ fi
 
 for i in "$@"
 do
-	case "$i" in
-	*'file'*|*'folder'*)
-		#URLS=("${URLS[@]}" "$i")
-		URLS=("${URLS[@]}" "${i//&*/}")
-		;;
-	'confirm'|'-confirm'|'--confirm'|'-c')
-		# to get the big files that google does not allow to download them directly without confirmation
-		_CONFIRM_=1
-    _CONFIRM_EXTERNAL_=1
-    # to use the external tool not the internal one; because the internal confirm function is not complete yet
-		;;
-	'confirm='*|'-confirm='*|'--confirm='*|'-c='*)
-		# to confirm and download specific file(s)
-		_CONFIRM_FILE_=("${_CONFIRM_FILE_[@]}" "$(echo $i | sed 's/^[-]*confirm=//' | sed 's/^[-]*c=//')")
-    _CONFIRM_EXTERNAL_=1
-		;;
-	'confirm-check'|'-confirm-check'|'--confirm-check'|'-cc'|'--cc')
-		# to just print a list of the big files that were not downloaded
-		_CONFIRM_CHECK_=1
-		;;
-	#'confirm-external'|'-confirm-external'|'--confirm-external'|'-ce'|'--ce')
-		#_CONFIRM_EXTERNAL_=1
-		#;;
-	'sync'|'-sync'|'--sync'|'-s') # to be implemented
-		_SYNC_=1
-		;;
-	'quiet'|'-quiet'|'--quiet'|'-q') # see download()
-		if [ -n "$_MODE_" ]
-		then
-			output 'WARNING: Quiet and/or Verbose and/or Debug are used at the same time.'
-			output 'Using Debug or the first provided one.'
-		else
-			_MODE_=1
-		fi
-		;;
-	'verbose'|'-verbose'|'--verbose'|'-v')
-		if [ -n "$_MODE_" ]
-		then
-			output 'WARNING: Quiet and/or Verbose and/or Debug are used at the same time.'
-			output 'Using Debug or the first provided one.'
-		else
-			_MODE_=2
-		fi
-		;;
-	'mode='*|'-mode='*|'--mode='*)
-		# It's supposed to be set only one time. Otherwise, the last one will the only one to have the effect.
-		# It's made to used by script only, but the user can use it also.
-		_MODE_=${i//*mode=/}
-		;;
-	'choose='*|'-choose='*|'--choose='*|'-ch='*|'--ch='*)
-		_CHOOSE_=("${_CHOOSE_[@]}" "$(echo $i | sed 's/^[-]*choose=//' | sed 's/^[-]*ch=//' | sed 's|/$||')")
-		;;
-	'exclude='*|'-exclude='*|'--exclude='*|'-ex='*|'--ex='*)
-		_EXCLUDE_=("${_EXCLUDE_[@]}" "$(echo $i | sed 's/^[-]*exclude=//' | sed 's/^[-]*ex=//' | sed 's|/$||')")
-		;;
-	'--help'|'-h')
-		help #should be once
-		;;
-	'--update'|'-u'|'-U')
-	# to be improved
-    	echo -n 'Updating to '
-	    if wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}"
-    	then
-	      ( wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/gdrive-dl' -O ${_SCRIPT_} & )
-	      exit
-    	else
-	      	echo 'N/A'
-	    fi
-		;;
-  '--check-update'|'-cu')
-	    echo -n 'The latest version is '
-    	wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}" || echo 'N/A'
-    	echo 'Your version is       '"${_VERSION_}"
-		;;
-	'--version'|'-V')
-		echo $_VERSION_
-		;;
-	'--license'|'-l'|'-L')
-		echo 'License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.'
-		;;
-  '-d'|'--debug')
+  case "$i" in
+    *'file'*|*'folder'*)
+      #URLS=("${URLS[@]}" "$i")
+      URLS=("${URLS[@]}" "${i//&*/}")
+      ;;
+    'confirm'|'-confirm'|'--confirm'|'-c')
+      # to get the big files that google does not allow to download them directly without confirmation
+      _CONFIRM_=1
+      _CONFIRM_EXTERNAL_=1
+      # to use the external tool not the internal one; because the internal confirm function is not complete yet
+      ;;
+    'confirm='*|'-confirm='*|'--confirm='*|'-c='*)
+      # to confirm and download specific file(s)
+      _CONFIRM_FILE_=("${_CONFIRM_FILE_[@]}" "$(echo $i | sed 's/^[-]*confirm=//' | sed 's/^[-]*c=//')")
+      _CONFIRM_EXTERNAL_=1
+      ;;
+    'confirm-check'|'-confirm-check'|'--confirm-check'|'-cc'|'--cc')
+      # to just print a list of the big files that were not downloaded
+      _CONFIRM_CHECK_=1
+      ;;
+    #'confirm-external'|'-confirm-external'|'--confirm-external'|'-ce'|'--ce')
+      #_CONFIRM_EXTERNAL_=1
+      #;;
+    'sync'|'-sync'|'--sync'|'-s') # to be implemented
+      _SYNC_=1
+      ;;
+    'quiet'|'-quiet'|'--quiet'|'-q') # see download()
+      if [ -n "$_MODE_" ]
+      then
+        output 'WARNING: Quiet and/or Verbose and/or Debug are used at the same time.'
+        output 'Using Debug or the first provided one.'
+      else
+        _MODE_=1
+      fi
+      ;;
+    'verbose'|'-verbose'|'--verbose'|'-v')
+      if [ -n "$_MODE_" ]
+      then
+        output 'WARNING: Quiet and/or Verbose and/or Debug are used at the same time.'
+        output 'Using Debug or the first provided one.'
+      else
+        _MODE_=2
+      fi
+      ;;
+    'mode='*|'-mode='*|'--mode='*)
+      # It's supposed to be set only one time. Otherwise, the last one will the only one to have the effect.
+      # It's made to used by script only, but the user can use it also.
+      _MODE_=${i//*mode=/}
+      ;;
+    'choose='*|'-choose='*|'--choose='*|'-ch='*|'--ch='*)
+      _CHOOSE_=("${_CHOOSE_[@]}" "$(echo $i | sed 's/^[-]*choose=//' | sed 's/^[-]*ch=//' | sed 's|/$||')")
+      ;;
+    'exclude='*|'-exclude='*|'--exclude='*|'-ex='*|'--ex='*)
+      _EXCLUDE_=("${_EXCLUDE_[@]}" "$(echo $i | sed 's/^[-]*exclude=//' | sed 's/^[-]*ex=//' | sed 's|/$||')")
+      ;;
+    '--help'|'-h')
+      help #should be once
+      ;;
+    '--update'|'-u'|'-U')
+      # to be improved
+      echo -n 'Updating to '
+      if wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}"
+      then
+        ( wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/gdrive-dl' -O ${_SCRIPT_} & )
+        exit
+      else
+        echo 'N/A'
+      fi
+      ;;
+    '--check-update'|'-cu')
+      echo -n 'The latest version is '
+      wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}" || echo 'N/A'
+      echo 'Your version is       '"${_VERSION_}"
+      ;;
+    '--version'|'-V')
+      echo $_VERSION_
+      ;;
+    '--license'|'-l'|'-L')
+      echo 'License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.'
+      ;;
+    '-d'|'--debug')
+      ;;
+    *)
+      echo "'$i' is not recognized. Try '$(basename "${BASH_SOURCE[0]}") --help' for more information."
     ;;
-	*)
-		echo "'$i' is not recognized. Try '$(basename "${BASH_SOURCE[0]}") --help' for more information."
-		;;
-	esac
+  esac
 done
 
 ## MAIN ()
 
 for i in "${URLS[@]}"
 do
-	case "$i" in
-	*file*)
-		TITLE=$(wget -q "$i" -O -| grep "'title':" | sed "s|.*'title': '||" | sed "s|'.*||")
-		ID=$(echo ${i//*0B/0B} | sed 's|/.*||')
-		download "$ID" "$TITLE" $_MODE_
-		;;
-	*folder*)
-		FILE_0=$(wget -q "$i" -O -) # will not be modified
-		FILE_D=$FILE_0 # will be modified, for folders
-		FILE_F=$FILE_0 # will be modified, for files
-		
-		# Downloading files, before folders
-		until [ "$FILE_F" = "${FILE_F#*flip-entry-title\">}" ]
-		do
-			ID=$( echo ${FILE_F#*id=\"entry-} | sed 's|".*||' )
-			FILE_F=${FILE_F#*flip-entry-title\">}
-			case $FILE_0 in
-			*'/drive.google.com/folderview?id\u003d'$ID*) # is folder
+  case "$i" in
+  *file*)
+    TITLE=$(wget -q "$i" -O -| grep "'title':" | sed "s|.*'title': '||" | sed "s|'.*||")
+    ID=$(echo ${i//*0B/0B} | sed 's|/.*||')
+    download "$ID" "$TITLE" $_MODE_
+    ;;
+  *folder*)
+    FILE_0=$(wget -q "$i" -O -) # will not be modified
+    FILE_D=$FILE_0 # will be modified, for folders
+    FILE_F=$FILE_0 # will be modified, for files
+    
+    # Downloading files, before folders
+    
+    until [ "$FILE_F" = "${FILE_F#*flip-entry-title\">}" ]
+    do
+      ID=$( echo ${FILE_F#*id=\"entry-} | sed 's|".*||' )
+      FILE_F=${FILE_F#*flip-entry-title\">}
+      case $FILE_0 in
+      *'/drive.google.com/folderview?id\u003d'$ID*) # is folder
         continue
-				;;
-			*'/drive.google.com/uc?id\u003d'$ID*) # is fil
-				;;
-			esac
-			TITLE=$( echo ${FILE_F} | sed 's|</div.*||' )
-			title_escape
-			
-			chex # Choose and Exclude
-			
-			download "$ID" "$TITLE" $_MODE_
-		done
-		unset FILE_F
-		
-		
-		# Downloading folders
-		until [ "$FILE_D" = "${FILE_D#*flip-entry-title\">}" ]
-		do
-			ID=$( echo ${FILE_D#*id=\"entry-} | sed 's|".*||' )
-			FILE_D=${FILE_D#*flip-entry-title\">}
-			
-			case $FILE_0 in
-			*'/drive.google.com/folderview?id\u003d'$ID*) # is folder
-				;;
-			*'/drive.google.com/uc?id\u003d'$ID*) # is file
+        ;;
+      *'/drive.google.com/uc?id\u003d'$ID*) # is file
+        ;;
+      esac
+      TITLE=$( echo ${FILE_F} | sed 's|</div.*||' )
+      title_escape
+      
+      chex # Choose and Exclude
+      
+      download "$ID" "$TITLE" $_MODE_
+    done
+    unset FILE_F
+    
+    
+    # Downloading folders
+    until [ "$FILE_D" = "${FILE_D#*flip-entry-title\">}" ]
+    do
+      ID=$( echo ${FILE_D#*id=\"entry-} | sed 's|".*||' )
+      FILE_D=${FILE_D#*flip-entry-title\">}
+      
+      case $FILE_0 in
+      *'/drive.google.com/folderview?id\u003d'$ID*) # is folder
+        ;;
+      *'/drive.google.com/uc?id\u003d'$ID*) # is file
         continue
-				;;
-			esac
-			
-			TITLE=$( echo ${FILE_D} | sed 's|</div.*||' )
-			title_escape
-			
-			chex # Choose and Exclude
-			
-			if [ ! -d "$TITLE" ]
-			then
-				mkdir -p "$TITLE"
-			fi
-	
-			cd "$TITLE"
-			if [ x$MODE != x1 ] # not quiet
-			then
-				output Now in "$NOWPATH$TITLE/"
-			fi
-			NOWPATH="$NOWPATH$TITLE/" ${_SCRIPT_} https://drive.google.com/folderview?id=$ID --mode=$_MODE_
-			cd ..
-			
-		done
+        ;;
+      esac
+      
+      TITLE=$( echo ${FILE_D} | sed 's|</div.*||' )
+      title_escape
+      
+      chex # Choose and Exclude
+      if [ ! -d "$TITLE" ]
+      then
+        mkdir -p "$TITLE"
+      fi
+      
+      cd "$TITLE"
+      if [ x$MODE != x1 ] # not quiet
+      then
+        output Now in "$NOWPATH$TITLE/"
+      fi
+      NOWPATH="$NOWPATH$TITLE/" ${_SCRIPT_} https://drive.google.com/folderview?id=$ID --mode=$_MODE_
+      cd ..
+      
+    done
     unset FILE_D
-		;;
-	esac
+    ;;
+  esac
 done
 
 ## END MAIN ()
@@ -383,37 +377,37 @@ done
 ## AFTER MAIN _ CONFIRMATION
 if [ "$_CONFIRM_CHECK_" == '1' ]
 then
-	grep -lr '/uc?export=download'
+  grep -lr '/uc?export=download'
 fi
 
 if [ "$_CONFIRM_" == '1' ]
 then
-	grep -lr '/uc?export=download' | while read a
-	do
-		output Confirming "$a"
-		if [ x$_CONFIRM_EXTERNAL_ == x ] # not external
-		then
-			confirm "$a"
-		else
-			URL=$(grep '/uc?export=download' "$a" | sed 's|.*uc?export=download|uc?export=download|' | sed 's|\".*||')
-			perl "${SCRIPT_%/*}/gdown.pl" 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$a"
-		fi
-	done
+  grep -lr '/uc?export=download' | while read a
+  do
+    output Confirming "$a"
+    if [ x$_CONFIRM_EXTERNAL_ == x ] # not external
+    then
+      confirm "$a"
+    else
+      URL=$(grep '/uc?export=download' "$a" | sed 's|.*uc?export=download|uc?export=download|' | sed 's|\".*||')
+      perl "${SCRIPT_%/*}/gdown.pl" 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$a"
+    fi
+  done
 fi
 
 if [ ${#_CONFIRM_FILE_[@]} -ne 0 ]                   
 then
-	for a in "${_CONFIRM_FILE_[@]}"
-	do
-		output Confirming "$a"
-		if [ x$_CONFIRM_EXTERNAL_ == x ] # not external
-		then
-			confirm "$a"
-		else
-			URL=$(grep '/uc?export=download' "$a" | sed 's|.*uc?export=download|uc?export=download|' | sed 's|\".*||')
-			perl "${_SCRIPT_%/*}/gdown.pl" 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$a"
-		fi
-	done
+  for a in "${_CONFIRM_FILE_[@]}"
+  do
+    output Confirming "$a"
+    if [ x$_CONFIRM_EXTERNAL_ == x ] # not external
+    then
+      confirm "$a"
+    else
+      URL=$(grep '/uc?export=download' "$a" | sed 's|.*uc?export=download|uc?export=download|' | sed 's|\".*||')
+      perl "${_SCRIPT_%/*}/gdown.pl" 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$a"
+    fi
+  done
 fi
 
 ## AFTER MAIN _ END CONFIRMATION
