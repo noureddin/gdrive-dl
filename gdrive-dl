@@ -38,19 +38,24 @@ _TEMP_='/tmp'
 function download()
 {
   # $1 is $ID, $2 is $TITLE/$FILENAME, and $3 is $_MODE_
-  if [ x$3 == x1 ] # quiet
+  # Download Only files that end in .part, or do not exist
+  if [ -f "${TITLE}.part" ] || [ ! -f "${TITLE}" ]
   then
-    wget -q -c "http://drive.google.com/uc?id=$1&e=download" -O "$2"
-  elif [ x$3 == x2 ] || [ x$3 == x3 ] # verbose or debug
-  then
-    echo Getting "$2"
-    wget -c "http://drive.google.com/uc?id=$1&e=download" -O "$2"
-  else # neither quiet, nor verbose, i.e. normal
-    wget -nv -c "http://drive.google.com/uc?id=$1&e=download" -O "$2"
-    #echo "http://drive.google.com/uc?id=$1&e=download" > "$2" # for test
-    #echo Getting "$1" "$2" # for test only
-    #echo Getting "$2" # for test only
-    #echo "$1" > "$2" # for test only
+    if [ x$3 == x1 ] # quiet
+    then
+      wget -q -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part"
+    elif [ x$3 == x2 ] || [ x$3 == x3 ] # verbose or debug
+    then
+      echo Getting "$2"
+      wget -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part"
+    else # neither quiet, nor verbose, i.e. normal
+      wget -q -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part"
+      #echo "http://drive.google.com/uc?id=$1&e=download" > "$2" # for test
+      #echo Getting "$1" "$2" # for test only
+      #echo Getting "$2" # for test only
+      #echo "$1" > "$2" # for test only
+    fi
+    mv "$2"{.part,}
   fi
 }
 
@@ -58,7 +63,7 @@ function download()
 
   # Thanks, Circulosmeos.
   # Written firstly by Circulosmeos in 04-2014 in Perl.
-  # Modified by me ( the core author of gdrive-dl ) to be in bash.
+  # Modified by me (the author of gdrive-dl) to be in bash.
   # http://circulosmeos.wordpress.com/2014/04/12/google-drive-direct-download-of-big-files
   # Distributed under GPL 3 (http://www.gnu.org/licenses/gpl-3.0.html)
 
