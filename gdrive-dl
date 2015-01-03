@@ -220,6 +220,9 @@ do
     '--help'|'-h')
       help #should be once
       ;;
+    '--branch='*|'-b='*)
+      _BRANCH_="$(echo $i | sed 's/^[-]*branch=//' | sed 's/^[-]*b=//')"
+      ;;
     '--update'|'-u'|'-U')
       # to be improved
       echo -n 'Updating to '
