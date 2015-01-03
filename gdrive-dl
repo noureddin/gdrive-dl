@@ -2,14 +2,14 @@
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
-_VERSION_='2014.12.28-unstable'
+_VERSION_='2015.01.03-unstable'
 _BRANCH_='u' # used for update. where u: unstable, t: testing, s: stable
 
 # $_MODE_:
 #   null: normal, # output the pwd & the summary of downloaded file (if any)
 #   1: quiet,     # do not output anything usual (output errors and warning only, if any)
 #   2: verbose,   # output the pwd & everything about the files downloading processes
-#   3: debug,     # output as much informtion as you can
+#   3: debug,     # output as much informtion as possible
 #
 
 for i in "$@"  # checking debug mode
@@ -24,14 +24,6 @@ do
     ;;
   esac
 done
-
-
-## CONFIGURATION
-
-_TEMP_='/tmp'
-
-## END CONFIGURATION
-
 
 ## FUNCTIONS
 
@@ -49,6 +41,7 @@ function download()
       echo Getting "$2"
       wget -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part"
     else # neither quiet, nor verbose, i.e. normal
+      echo Getting "$2"
       wget -q -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part"
       #echo "http://drive.google.com/uc?id=$1&e=download" > "$2" # for test
       #echo Getting "$1" "$2" # for test only
