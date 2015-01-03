@@ -59,52 +59,6 @@ function download()
   fi
 }
 
-## ## Confirming Function
-
-  # Thanks, Circulosmeos.
-  # Written firstly by Circulosmeos in 04-2014 in Perl.
-  # Modified by me (the author of gdrive-dl) to be in bash.
-  # http://circulosmeos.wordpress.com/2014/04/12/google-drive-direct-download-of-big-files
-  # Distributed under GPL 3 (http://www.gnu.org/licenses/gpl-3.0.html)
-
-function download-again()
-{
-  # For Confirming files
-  # not done yet
-  
-  # $1 is $URL, $2 is $TITLE/$FILENAME, $3 is $_MODE_
-  if [ x$3 == x1 ] # quiet
-  then
-    wget -q --load-cookie ${_TEMP_}/cookie.txt --save-cookie ${_TEMP_}/cookie.txt "$1" -O "$2"
-  elif [ x$3 == x2 ] || [ x$3 == x3 ] # verbose, or debug
-  then
-    wget --load-cookie ${_TEMP_}/cookie.txt --save-cookie ${_TEMP_}/cookie.txt "$1" -O "$2"
-  else # neither quiet, nor verbose, i.e. normal
-    wget -nv --load-cookie ${_TEMP_}/cookie.txt --save-cookie ${_TEMP_}/cookie.txt "$1" -O "$2"
-  fi
-}
-
-function confirm()
-{
-  # not done yet
-  # $1 is $TITLE/$FILENAME
-  URL=$(grep '/uc?export=download' "$1" | sed 's|.*uc?export=download|uc?export=download|' | sed 's|\".*||')
-  
-  download-again 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$1"
-  
-  while [ $(stat -c %s "$1") -lt 100000 ] # only if the file isn't the download yet
-  do
-    if grep 'href="/uc?export=download' "$1"
-    then
-      URL='https://docs.google.com'$( grep 'href="/uc?export=download' "$1" | sed 's|.*href="/uc?export=|/uc?export=|' | sed 's/".*//' )
-      URL=${URL//'&amp;'/'&'}
-    fi
-    download-again "$URL" "$1"
-  done
-}
-
-## ## END Confirming Function
-
 function title_escape()
 {
   TITLE="${TITLE//'&amp;'/'&'}" # fix &
@@ -222,21 +176,15 @@ do
     'confirm'|'-confirm'|'--confirm'|'-c')
       # to get the big files that google does not allow to download them directly without confirmation
       _CONFIRM_=1
-      _CONFIRM_EXTERNAL_=1
-      # to use the external tool not the internal one; because the internal confirm function is not complete yet
       ;;
     'confirm='*|'-confirm='*|'--confirm='*|'-c='*)
       # to confirm and download specific file(s)
       _CONFIRM_FILE_=("${_CONFIRM_FILE_[@]}" "$(echo $i | sed 's/^[-]*confirm=//' | sed 's/^[-]*c=//')")
-      _CONFIRM_EXTERNAL_=1
       ;;
     'confirm-check'|'-confirm-check'|'--confirm-check'|'-cc'|'--cc')
       # to just print a list of the big files that were not downloaded
       _CONFIRM_CHECK_=1
       ;;
-    #'confirm-external'|'-confirm-external'|'--confirm-external'|'-ce'|'--ce')
-      #_CONFIRM_EXTERNAL_=1
-      #;;
     'sync'|'-sync'|'--sync'|'-s') # to be implemented
       _SYNC_=1
       ;;
@@ -390,13 +338,8 @@ then
   grep -lr '/uc?export=download' | while read a
   do
     output Confirming "$a"
-    if [ x$_CONFIRM_EXTERNAL_ == x ] # not external
-    then
-      confirm "$a"
-    else
-      URL=$(grep '/uc?export=download' "$a" | sed 's|.*uc?export=download|uc?export=download|' | sed 's|\".*||')
-      perl "${SCRIPT_%/*}/gdown.pl" 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$a"
-    fi
+    URL=$(grep '/uc?export=download' "$a" | sed 's|.*uc?export=download|uc?export=download|' | sed 's|\".*||')
+    perl "${SCRIPT_%/*}/gdown.pl" 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$a"
   done
 fi
 
@@ -405,13 +348,8 @@ then
   for a in "${_CONFIRM_FILE_[@]}"
   do
     output Confirming "$a"
-    if [ x$_CONFIRM_EXTERNAL_ == x ] # not external
-    then
-      confirm "$a"
-    else
-      URL=$(grep '/uc?export=download' "$a" | sed 's|.*uc?export=download|uc?export=download|' | sed 's|\".*||')
-      perl "${_SCRIPT_%/*}/gdown.pl" 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$a"
-    fi
+    URL=$(grep '/uc?export=download' "$a" | sed 's|.*uc?export=download|uc?export=download|' | sed 's|\".*||')
+    perl "${_SCRIPT_%/*}/gdown.pl" 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$a"
   done
 fi
 
