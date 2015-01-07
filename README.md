@@ -87,18 +87,19 @@ if you assign them a value.</pre>
 ####About the `--limit` option:
 From GNU Wget's manual page. Notice that it's `--limit` only, in `gdrive-dl`:
 <pre><b>--limit-rate=</b>amount
-    Limit the download speed to amount bytes per second.  Amount may be expressed in bytes, kilobytes with the
-    <b>k</b> suffix, or megabytes with the <b>m</b> suffix.  For example, <b>--limit-rate=20k</b> will limit the retrieval rate to
-    20KB/s.  This is useful when, for whatever reason, you don't want Wget to consume the entire available
-    bandwidth.
+    Limit the download speed to <i>amount</i> bytes per second.  Amount may be expressed in
+    bytes, kilobytes with the <b>k</b> suffix, or megabytes with the <b>m</b> suffix.  For example,
+    <b>--limit-rate=20k</b> will limit the retrieval rate to 20KB/s.  This is useful when,
+    for whatever reason, you don't want Wget to consume the entire available bandwidth.
 
-    This option allows the use of decimal numbers, usually in conjunction with power suffixes; for example,
-    <b>--limit-rate=2.5k</b> is a legal value.
-    
-    Note that Wget implements the limiting by sleeping the appropriate amount of time after a network read that
-    took less time than specified by the rate.  Eventually this strategy causes the TCP transfer to slow down
-    to approximately the specified rate.  However, it may take some time for this balance to be achieved, so
-    don't be surprised if limiting the rate doesn't work well with very small files.</pre>
+    This option allows the use of decimal numbers, usually in conjunction with power
+    suffixes; for example, <b>--limit-rate=2.5k</b> is a legal value.
+
+    Note that Wget implements the limiting by sleeping the appropriate amount of time
+    after a network read that took less time than specified by the rate.  Eventually
+    this strategy causes the TCP transfer to slow down to approximately the specified
+    rate.  However, it may take some time for this balance to be achieved, so don't be
+    surprised if limiting the rate doesn't work well with very small files.</pre>
 
 
 The Stages (The develepment cycle)
