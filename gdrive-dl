@@ -245,7 +245,7 @@ do
       _EXCLUDE_=("${_EXCLUDE_[@]}" "$(echo $i | sed 's/^[-]*exclude=//' | sed 's/^[-]*ex=//' | sed 's|/$||')")
       ;;
     '--help'|'-h')
-      help #should be once
+      _HELP_=1
       ;;
     '--branch='*|'-b='*)
       _BRANCH_="$(echo $i | sed 's/^[-]*branch=//' | sed 's/^[-]*b=//')"
@@ -279,6 +279,8 @@ do
     ;;
   esac
 done
+
+[ "$_HELP_" == '1' ] && help # to print help only once
 
 ## MAIN ()
 
