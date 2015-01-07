@@ -52,10 +52,6 @@ function download()
       wget -nv -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part" \
       $([[ "$_RATE_" == "" ]] || echo "--limit-rate=$_RATE_") \
       $([[ "$_WO_" == "" ]] || echo "$_WO_")
-      #echo "http://drive.google.com/uc?id=$1&e=download" > "$2" # for test
-      #echo Getting "$1" "$2" # for test only
-      #echo Getting "$2" # for test only
-      #echo "$1" > "$2" # for test only
     fi
     mv "$2"{.part,}
   fi
@@ -76,7 +72,7 @@ function chex() # Choose and Exclude
   if [ ${#_CHOOSE_[@]} -ne 0 ] &&  [ ${#_EXCLUDE_[@]} -ne 0 ]
   # if the user used CHOOSE and EXCLUDE at the same time
   then
-    echo 'ERROR: Choose and Exclude are used at the same time.'
+    outwarn 'ERROR: ' 'Choose and Exclude are used at the same time.'
     exit 2
   fi
   
@@ -90,8 +86,8 @@ function chex() # Choose and Exclude
     fi
   fi
   
-  if [ ${#_EXCLUDE_[@]} -ne 0 ] #&& [ ${_EXCLUDE_[@]/$TITLE/} != ${_EXCLUDE_[@]} ] 
-  # the user used EXCLUDE and $TITLE is in $_EXCLUDE_
+  if [ ${#_EXCLUDE_[@]} -ne 0 ]
+  # the user used EXCLUDE
   then
     if for i in "${_EXCLUDE_[@]}";do echo $i;done | grep -q ^"$TITLE"$
     # $TITLE is in $_EXCLUDE_
@@ -101,11 +97,16 @@ function chex() # Choose and Exclude
   fi
 }
 
-function output()
+function output() # bold
 {
   tput bold;echo $@;tput sgr0
 }
 
+function outwarn() # output warning, bold red for $1, then bold (white) for $2
+{
+  echo -ne '\e[1;31m'"$1"'\e[m'
+  tput bold;echo "$2";tput sgr0
+}
 function help()
 {
   echo "Usage: $(basename "${BASH_SOURCE[0]}") [OPTION]... URL...
@@ -171,86 +172,68 @@ if you assign them a value.
 
 ## END FUNCTIONS
 
-# the path of the script; because we'll call it again.
-if [ -z "${_SCRIPT_}" ]
-then
-  export _SCRIPT_="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/$(basename "${BASH_SOURCE[0]}")"
-fi
+# the absolute path of the script; because we'll call it again.
+[ -z "${_SCRIPT_}" ] && export _SCRIPT_="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/$(basename "${BASH_SOURCE[0]}")"
 
+# PRE MAIN _ READING THE ARGUMENTS
 for i in "$@"
 do
   case "$i" in
     *'file'*|*'folder'*)
-      #URLS=("${URLS[@]}" "$i")
       URLS=("${URLS[@]}" "${i//&*/}")
       ;;
-    'confirm'|'-confirm'|'--confirm'|'-c')
+    '--confirm'|'-c')
       # to get the big files that google does not allow to download them directly without confirmation
       _CONFIRM_=1
       ;;
-    'confirm='*|'-confirm='*|'--confirm='*|'-c='*)
+    '--confirm='*|'-c='*)
       # to confirm and download specific file(s)
-      _CONFIRM_FILE_=("${_CONFIRM_FILE_[@]}" "$(echo $i | sed 's/^[-]*confirm=//' | sed 's/^[-]*c=//')")
+      _CONFIRM_FILE_=("${_CONFIRM_FILE_[@]}" "${i#*=}")
       ;;
-    'confirm-check'|'-confirm-check'|'--confirm-check'|'-cc'|'--cc')
+    '--confirm-check'|'-cc')
       # to just print a list of the big files that were not downloaded
       _CONFIRM_CHECK_=1
       ;;
-    'sync'|'-sync'|'--sync'|'-s') # to be implemented
-      _SYNC_=1
-      ;;
     '--directory='*|'-cd='*)
       # Note that using this switch more that one time, will not cause an error; but only the last will affect.
-      cd $(echo "$i" | sed 's/-[^=]*=//')
+      cd "${i#*=}"
       pwd
       ;;
     '--limit='*|'-l='*)
-      # Note that using this switch more that one time, will not cause an error; but only the last will affect.
-      _RATE_=$(echo "$i" | sed 's/-[^=]*=//')
+      [ -n "$_RATE_" ] && _RATE_WARN_=1 || _RATE_="${i#*=}"
       ;;
-    '-ad'|'--auto-detect-dirs')
+    '--auto-detect-dirs'|'-ad')
       _AUTO_DETECT_DIRS_=1
       ;;
-    '-wo='*|'--wget-option='*)
-      # Note that using this switch more that one time, will not cause an error; but only the last will affect.
-      _WO_=$(echo "$i" | sed 's/-[^=]*=//')
+    '--wget-option='*|'-wo='*)
+      [ -n "$_WO_" ] && _WO_WARN_=1 || _WO_="${i#*=}"
       ;;
-    'quiet'|'-quiet'|'--quiet'|'-q') # see download()
-      if [ -n "$_MODE_" ]
-      then
-        output 'WARNING: Quiet and/or Verbose and/or Debug are used at the same time.'
-        output 'Using Debug or the first provided one.'
-      else
-        _MODE_=1
-      fi
+    '--quiet'|'-q') # see $_MODE_ in the file header
+      [ -n "$_MODE_" ] && _MODE_WARN_=1 || _MODE_=1
       ;;
-    'verbose'|'-verbose'|'--verbose'|'-v')
-      if [ -n "$_MODE_" ]
-      then
-        output 'WARNING: Quiet and/or Verbose and/or Debug are used at the same time.'
-        output 'Using Debug or the first provided one.'
-      else
-        _MODE_=2
-      fi
+    '--verbose'|'-v')
+      [ -n "$_MODE_" ] && _MODE_WARN_=1 || _MODE_=2
       ;;
-    'mode='*|'-mode='*|'--mode='*)
+    '--mode='*)
       # It's supposed to be set only one time. Otherwise, the last one will the only one to have the effect.
-      # It's made to used by script only, but the user can use it also.
-      _MODE_=${i//*mode=/}
+      # It's made to be used only by the script, but the user can use it also.
+      _MODE_=${i//--mode=/}
       ;;
-    'choose='*|'-choose='*|'--choose='*|'-ch='*|'--ch='*)
-      _CHOOSE_=("${_CHOOSE_[@]}" "$(echo $i | sed 's/^[-]*choose=//' | sed 's/^[-]*ch=//' | sed 's|/$||')")
+    '--choose='*|'-ch='*)
+      i=${i#*=}
+      _CHOOSE_=("${_CHOOSE_[@]}" "${i%/}")
       ;;
-    'exclude='*|'-exclude='*|'--exclude='*|'-ex='*|'--ex='*)
-      _EXCLUDE_=("${_EXCLUDE_[@]}" "$(echo $i | sed 's/^[-]*exclude=//' | sed 's/^[-]*ex=//' | sed 's|/$||')")
+    '--exclude='*|'-ex='*)
+      i=${i#*=}
+      _EXCLUDE_=("${_EXCLUDE_[@]}" "${i%/}")
       ;;
     '--help'|'-h')
       _HELP_=1
       ;;
     '--branch='*|'-b='*)
-      _BRANCH_="$(echo $i | sed 's/^[-]*branch=//' | sed 's/^[-]*b=//')"
+      _BRANCH_="${i#*=}"
       ;;
-    '--update'|'-u'|'-U')
+    '--update'|'-U')
       # to be improved
       echo -n 'Updating to '
       if wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}"
@@ -262,17 +245,17 @@ do
       fi
       ;;
     '--check-update'|'-cu')
-      echo -n 'The latest version is '
+      echo    'Your current version is  '"${_VERSION_}"
+      echo -n 'The  latest  version is  '
       wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}" || echo 'N/A'
-      echo 'Your version is       '"${_VERSION_}"
       ;;
     '--version'|'-V')
       echo $_VERSION_
       ;;
-    '--license'|'-l'|'-L')
+    '--license'|'-L')
       echo 'License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.'
       ;;
-    '-d'|'--debug')
+      '--debug'|'-d')
       ;;
     *)
       echo "'$i' is not recognized. Try '$(basename "${BASH_SOURCE[0]}") --help' for more information."
@@ -282,13 +265,21 @@ done
 
 [ "$_HELP_" == '1' ] && help # to print help only once
 
+[ "$_RATE_WARN_" == '1' ] && outwarn 'WARNING: ' '`--limit` and/or `-l` are used multiple times at the same time; Using the first one.'
+
+[ "$_MODE_WARN_" ] && outwarn 'WARNING: ' 'Quiet, Verbose, and/or Debug are used at the same time; Using Debug or the first provided one.'
+
+[ "$_WO_WARN_" == '1' ] && outwarn 'WARNING: ' '`--wget-option` and/or `-wo` are used multiple times at the same time; Using the first one.'
+
+# PRE MAIN _ END READING THE ARGUMENTS
+
 ## MAIN ()
 
 for i in "${URLS[@]}"
 do
   case "$i" in
   *file*)
-    TITLE=$(wget -q "$i" -O -| grep "'title':" | sed "s|.*'title': '||" | sed "s|'.*||")
+    TITLE=$(wget -q "$i" -O - | grep "'title':" | sed "s|.*'title': '\([^']\+\)'.*|\1|")
     ID=$(echo ${i//*0B/0B} | sed 's|/.*||')
     download "$ID" "$TITLE" $_MODE_
     ;;
@@ -312,7 +303,6 @@ do
     fi
     
     # Downloading files, before folders
-    
     until [ "$FILE_F" = "${FILE_F#*flip-entry-title\">}" ]
     do
       ID=$( echo ${FILE_F#*id=\"entry-} | sed 's|".*||' )
@@ -326,8 +316,6 @@ do
       esac
       TITLE=$( echo ${FILE_F} | sed 's|</div.*||' )
       title_escape
-      
-      #echo FILE: "$TITLE" #for debugging
       
       chex # Choose and Exclude
       
@@ -350,7 +338,7 @@ do
         ;;
       esac
       
-      TITLE=$( echo ${FILE_D} | sed 's|</div.*||' )
+      TITLE=${FILE_D%%</div*}
       title_escape
       
       chex # Choose and Exclude
@@ -359,7 +347,6 @@ do
         mkdir -p "$TITLE"
       fi
       
-      #echo FOLDER: "$TITLE" #for debugging
       cd "$TITLE"
       if [ x$MODE != x1 ] # not quiet
       then
@@ -378,7 +365,8 @@ done
 
 ## END MAIN ()
 
-## AFTER MAIN _ CONFIRMATION
+
+## POST MAIN _ CONFIRMATION
 if [ "$_CONFIRM_CHECK_" == '1' ]
 then
   grep -lr '/uc?export=download'
@@ -404,4 +392,4 @@ then
   done
 fi
 
-## AFTER MAIN _ END CONFIRMATION
+## POST MAIN _ END CONFIRMATION
