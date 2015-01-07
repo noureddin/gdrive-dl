@@ -2,7 +2,10 @@
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
-_VERSION_='2015.01.03-unstable'
+#
+#  Some documentaions and help phrases are copied, as-is or with change, from GNU grep, GNU wget, and youtube-dl.
+#
+_VERSION_='2015.01.07-unstable'
 _BRANCH_='u' # used for update. where u: unstable, t: testing, s: stable
 
 # $_MODE_:
@@ -35,14 +38,20 @@ function download()
   then
     if [ x$3 == x1 ] # quiet
     then
-      wget -q -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part"
+      wget -q -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part" \
+      $([[ "$_RATE_" == "" ]] || echo "--limit-rate=$_RATE_") \
+      $([[ "$_WO_" == "" ]] || echo "$_WO_")
     elif [ x$3 == x2 ] || [ x$3 == x3 ] # verbose or debug
     then
       echo Getting "$2"
-      wget -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part"
+      wget -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part" \
+      $([[ "$_RATE_" == "" ]] || echo "--limit-rate=$_RATE_") \
+      $([[ "$_WO_" == "" ]] || echo "$_WO_")
     else # neither quiet, nor verbose, i.e. normal
       echo Getting "$2"
-      wget -q -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part"
+      wget -nv -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part" \
+      $([[ "$_RATE_" == "" ]] || echo "--limit-rate=$_RATE_") \
+      $([[ "$_WO_" == "" ]] || echo "$_WO_")
       #echo "http://drive.google.com/uc?id=$1&e=download" > "$2" # for test
       #echo Getting "$1" "$2" # for test only
       #echo Getting "$2" # for test only
@@ -108,38 +117,47 @@ URL can be a folder URL or a file URL.
 Example: $0 https://drive.google.com/folderview?id=0BXXXXXXXXXXX
 
 General Options:
-  -h,  --help            display this help text
-  -V,  --version         display version information
-  -L,  --license         display license information
-  -U,  --update          update to the latest version
-  -cu, --check-update    check if up-to-date or not
+  -h,  --help            display this help text.
+  -V,  --version         display version information.
+  -L,  --license         display license information.
+  -U,  --update          update to the latest version.
+  -cu, --check-update    check if up-to-date or not.
 
 Selection Options:
   -ch, --choose=NAME     choose a file or folder by its NAME,
-                         and nothing else will be downloaded
+                         and nothing else will be downloaded.
   -ex, --exclude=NAME    exclude a file or folder by its NAME,
-                         and everything else will be downloaded
+                         and everything else will be downloaded.
 
+Downloading Options:
+  -l,  --limit=RATE      limit download rate (speed) to RATE.
+  -ad, --auto-detect-dirs  download each directory url into
+                         a directory of its name, not in
+                         the current one.
+  -cd, --directory=DIR   change to directory DIR; i.e., use it
+                         as a place to download in, instead of
+                         the current directory.
+  -wo, --wget-option=OPT  if you want to provide specific wget options.
+  
 Output Options:
-  -q,  --quiet           suppress all normal output
-  -v,  --verbose         output more information than usual
-  -d,  --debug           output much debugging information
+  -q,  --quiet           suppress all normal output.
+  -v,  --verbose         output more information than usual.
+  -d,  --debug           output much debugging information.
 
 Confirming Options:
-  to get the big files that google does not allow to download them
+  to get the big files that Google does not allow to download them
   directly without confirmation.
 
   -c,  --confirm[=NAME]  if no NAME is given, download all files
                          that need confirmation in the current
-                         folder (recursively).
-                         if a NAME of a file is given, then
-                         confirm and download this file.
+                         folder (recursively). If a NAME of a file
+                         is given, then confirm and download this file.
   -cc, --confirm-check   only display the relative path of the files
                          that need confirmation in the current folder
                          (recursively).
 
-Notice that both Choose and Exclude can be used many times in the same time
-to choose or exclude many files or folders.
+Notice that both Choose and Exclude can be used many times in the same
+time to choose or exclude many files or folders.
 Notice also that you cannot use both at the same time.
 
 Not using either '--quiet' or '--verbose' means the normal (default) mode.
@@ -180,6 +198,22 @@ do
       ;;
     'sync'|'-sync'|'--sync'|'-s') # to be implemented
       _SYNC_=1
+      ;;
+    '--directory='*|'-cd='*)
+      # Note that using this switch more that one time, will not cause an error; but only the last will affect.
+      cd $(echo "$i" | sed 's/-[^=]*=//')
+      pwd
+      ;;
+    '--limit='*|'-l='*)
+      # Note that using this switch more that one time, will not cause an error; but only the last will affect.
+      _RATE_=$(echo "$i" | sed 's/-[^=]*=//')
+      ;;
+    '-ad'|'--auto-detect-dirs')
+      _AUTO_DETECT_DIRS_=1
+      ;;
+    '-wo='*|'--wget-option='*)
+      # Note that using this switch more that one time, will not cause an error; but only the last will affect.
+      _WO_=$(echo "$i" | sed 's/-[^=]*=//')
       ;;
     'quiet'|'-quiet'|'--quiet'|'-q') # see download()
       if [ -n "$_MODE_" ]
@@ -261,6 +295,20 @@ do
     FILE_D=$FILE_0 # will be modified, for folders
     FILE_F=$FILE_0 # will be modified, for files
     
+    # If auto_detect_dirs is choosen
+    if [ "$_AUTO_DETECT_DIRS_" == "1" ]
+    then
+      TITLE=$(echo "$FILE_0" | grep '<title>' | sed 's|.*<title>\([^<]\+\)</title>.*|\1|')
+      title_escape
+      mkdir -p "$TITLE"
+      cd "$TITLE"
+      if [ x$MODE != x1 ] # not quiet
+      then
+        output Now in "$TITLE/"
+        NOWPATH="$TITLE/"
+      fi
+    fi
+    
     # Downloading files, before folders
     
     until [ "$FILE_F" = "${FILE_F#*flip-entry-title\">}" ]
@@ -276,6 +324,8 @@ do
       esac
       TITLE=$( echo ${FILE_F} | sed 's|</div.*||' )
       title_escape
+      
+      #echo FILE: "$TITLE" #for debugging
       
       chex # Choose and Exclude
       
@@ -307,12 +357,15 @@ do
         mkdir -p "$TITLE"
       fi
       
+      #echo FOLDER: "$TITLE" #for debugging
       cd "$TITLE"
       if [ x$MODE != x1 ] # not quiet
       then
         output Now in "$NOWPATH$TITLE/"
+        NOWPATH="$NOWPATH$TITLE/" ${_SCRIPT_} https://drive.google.com/folderview?id=$ID --mode=$_MODE_
+      else # quiet
+        ${_SCRIPT_} https://drive.google.com/folderview?id=$ID --mode=$_MODE_
       fi
-      NOWPATH="$NOWPATH$TITLE/" ${_SCRIPT_} https://drive.google.com/folderview?id=$ID --mode=$_MODE_
       cd ..
       
     done
