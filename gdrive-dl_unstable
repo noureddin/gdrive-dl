@@ -47,7 +47,7 @@ function download()
       wget -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part" \
       $([[ "$_RATE_" == "" ]] || echo "--limit-rate=$_RATE_") \
       $([[ "$_WO_" == "" ]] || echo "$_WO_")
-    else # neither quiet, nor verbose, i.e. normal
+    else # neither quiet, nor verbose; i.e., normal
       echo Getting "$2"
       wget -nv -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part" \
       $([[ "$_RATE_" == "" ]] || echo "--limit-rate=$_RATE_") \
@@ -64,7 +64,7 @@ function title_escape()
   TITLE="${TITLE//':'/'-'}" # replace : with -
   TITLE="${TITLE//'&#39;'/"'"}" # replace &#39; with '
   TITLE="${TITLE//'&quot;'/"\""}" # replace &quot; with "
-  TITLE="`echo \"$TITLE\" | sed 's/^ *//' | sed 's/ *$//' `" # trim beginning & ending spaces - if found
+  TITLE="$(echo $TITLE)" # trim leading & trailing spaces - if found
 }
 
 function chex() # Choose and Exclude
@@ -236,9 +236,11 @@ do
     '--update'|'-U')
       # to be improved
       echo -n 'Updating to '
-      if wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}"
+      t=$(wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}")
+      if [ -n "$t" ] # t="YYYY.MM.DD-BRANCH master/gdrive-dl_BRANCH" : "version link_to_gdrive-dl"
       then
-        ( wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/gdrive-dl' -O ${_SCRIPT_} & )
+        echo ${t%% *}
+        ( wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/'"${t#* }" -O ${_SCRIPT_} & )
         exit
       else
         echo 'N/A'
@@ -247,7 +249,8 @@ do
     '--check-update'|'-cu')
       echo    'Your current version is  '"${_VERSION_}"
       echo -n 'The  latest  version is  '
-      wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}" || echo 'N/A'
+      t=$(wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}")
+      [ -n "$t" ] && echo ${t%% *} || echo 'N/A'
       ;;
     '--version'|'-V')
       echo $_VERSION_
@@ -279,7 +282,9 @@ for i in "${URLS[@]}"
 do
   case "$i" in
   *file*)
-    TITLE=$(wget -q "$i" -O - | grep "'title':" | sed "s|.*'title': '\([^']\+\)'.*|\1|")
+    TITLE=$(wget -q "$i" -O -)
+    TITLE=${TITLE#*<title>}; TITLE=${TITLE%% - Google Drive</title>*}
+    title_escape
     ID=$(echo ${i//*0B/0B} | sed 's|/.*||')
     download "$ID" "$TITLE" $_MODE_
     ;;
@@ -291,7 +296,7 @@ do
     # If auto_detect_dirs is choosen
     if [ "$_AUTO_DETECT_DIRS_" == "1" ]
     then
-      TITLE=$(echo "$FILE_0" | grep '<title>' | sed 's|.*<title>\([^<]\+\)</title>.*|\1|')
+      TITLE=${FILE_0#*<title>}; TITLE=${TITLE%%</title>*}
       title_escape
       mkdir -p "$TITLE"
       cd "$TITLE"
