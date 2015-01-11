@@ -5,7 +5,7 @@
 #
 #  Some documentaions and help phrases are copied, as-is or with change, from GNU grep, GNU wget, and youtube-dl.
 #
-_VERSION_='2015.01.08-unstable'
+_VERSION_='2015.01.11-unstable'
 _BRANCH_='u' # used for update. where u: unstable, t: testing, s: stable
 
 # $_MODE_:
@@ -32,16 +32,17 @@ done
 
 function download()
 {
-  # $1 is $ID, $2 is $TITLE/$FILENAME, and $3 is $_MODE_
+  # $1 is $ID, $2 is $TITLE/$FILENAME
+  
   # Download Only files that end in .part, or do not exist
   if [ -f "${TITLE}.part" ] || [ ! -f "${TITLE}" ]
   then
-    if [ x$3 == x1 ] # quiet
+    if [ "$_MODE_" == "1" ] # quiet
     then
       wget -q -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part" \
       $([[ "$_RATE_" == "" ]] || echo "--limit-rate=$_RATE_") \
       $([[ "$_WO_" == "" ]] || echo "$_WO_")
-    elif [ x$3 == x2 ] || [ x$3 == x3 ] # verbose or debug
+    elif [ "$_MODE_" == "2" ] || [ "$_MODE_" == "3" ] # verbose or debug
     then
       echo Getting "$2"
       wget -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part" \
@@ -62,9 +63,9 @@ function title_escape()
   TITLE="${TITLE//'&amp;'/'&'}" # fix &
   TITLE="${TITLE//'/'/'-'}" # replace / with -
   TITLE="${TITLE//':'/'-'}" # replace : with -
-  TITLE="${TITLE//'&#39;'/"'"}" # replace &#39; with '
-  TITLE="${TITLE//'&quot;'/"\""}" # replace &quot; with "
-  TITLE="$(echo $TITLE)" # trim leading & trailing spaces - if found
+  TITLE="${TITLE//'&#39;'/\'}" # replace &#39; with '
+  TITLE="${TITLE//'&quot;'/\"}" # replace &quot; with "
+  TITLE="$(echo "$TITLE" | sed 's/^[ \t]*//;s/[ \t]*$//')" # trim leading & trailing spaces - if found
 }
 
 function chex() # Choose and Exclude
@@ -200,24 +201,24 @@ do
       pwd
       ;;
     '--limit='*|'-l='*)
-      [ -n "$_RATE_" ] && _RATE_WARN_=1 || _RATE_="${i#*=}"
+      [ -n "$_RATE_" ] && _RATE_WARN_=1 || export _RATE_="${i#*=}"
       ;;
     '--auto-detect-dirs'|'-ad')
       _AUTO_DETECT_DIRS_=1
       ;;
     '--wget-option='*|'-wo='*)
-      [ -n "$_WO_" ] && _WO_WARN_=1 || _WO_="${i#*=}"
+      [ -n "$_WO_" ] && _WO_WARN_=1 || export _WO_="${i#*=}"
       ;;
     '--quiet'|'-q') # see $_MODE_ in the file header
-      [ -n "$_MODE_" ] && _MODE_WARN_=1 || _MODE_=1
+      [ -n "$_MODE_" ] && _MODE_WARN_=1 || export _MODE_=1
       ;;
     '--verbose'|'-v')
-      [ -n "$_MODE_" ] && _MODE_WARN_=1 || _MODE_=2
+      [ -n "$_MODE_" ] && _MODE_WARN_=1 || export _MODE_=2
       ;;
     '--mode='*)
       # It's supposed to be set only one time. Otherwise, the last one will the only one to have the effect.
       # It's made to be used only by the script, but the user can use it also.
-      _MODE_=${i//--mode=/}
+      export _MODE_=${i//--mode=/}
       ;;
     '--choose='*|'-ch='*)
       i=${i#*=}
@@ -286,7 +287,7 @@ do
     TITLE=${TITLE#*<title>}; TITLE=${TITLE%% - Google Drive</title>*}
     title_escape
     ID=$(echo ${i//*0B/0B} | sed 's|/.*||')
-    download "$ID" "$TITLE" $_MODE_
+    download "$ID" "$TITLE"
     ;;
   *folder*)
     FILE_0=$(wget -q "$i" -O -) # will not be modified
@@ -300,7 +301,7 @@ do
       title_escape
       mkdir -p "$TITLE"
       cd "$TITLE"
-      if [ x$MODE != x1 ] # not quiet
+      if [ "$_MODE_" != "1" ] # not quiet
       then
         output Now in "$TITLE/"
         NOWPATH="$TITLE/"
@@ -310,7 +311,7 @@ do
     # Downloading files, before folders
     until [ "$FILE_F" = "${FILE_F#*flip-entry-title\">}" ]
     do
-      ID=$( echo ${FILE_F#*id=\"entry-} | sed 's|".*||' )
+      ID=${FILE_F#*id=\"entry-}; ID=${ID%%\"*}
       FILE_F=${FILE_F#*flip-entry-title\">}
       case $FILE_0 in
       *'/drive.google.com/folderview?id\u003d'$ID*) # is folder
@@ -319,12 +320,12 @@ do
       *'/drive.google.com/uc?id\u003d'$ID*) # is file
         ;;
       esac
-      TITLE=$( echo ${FILE_F} | sed 's|</div.*||' )
+      TITLE=${FILE_F%%</div*}
       title_escape
       
       chex # Choose and Exclude
       
-      download "$ID" "$TITLE" $_MODE_
+      download "$ID" "$TITLE"
     done
     unset FILE_F
     
@@ -332,7 +333,7 @@ do
     # Downloading folders
     until [ "$FILE_D" = "${FILE_D#*flip-entry-title\">}" ]
     do
-      ID=$( echo ${FILE_D#*id=\"entry-} | sed 's|".*||' )
+      ID=${FILE_D#*id=\"entry-}; ID=${ID%%\"*}
       FILE_D=${FILE_D#*flip-entry-title\">}
       
       case $FILE_0 in
@@ -353,12 +354,12 @@ do
       fi
       
       cd "$TITLE"
-      if [ x$MODE != x1 ] # not quiet
+      if [ "$_MODE_" != "1" ] # not quiet
       then
         output Now in "$NOWPATH$TITLE/"
-        NOWPATH="$NOWPATH$TITLE/" ${_SCRIPT_} https://drive.google.com/folderview?id=$ID --mode=$_MODE_
+        NOWPATH="$NOWPATH$TITLE/" ${_SCRIPT_} https://drive.google.com/folderview?id=$ID
       else # quiet
-        ${_SCRIPT_} https://drive.google.com/folderview?id=$ID --mode=$_MODE_
+        ${_SCRIPT_} https://drive.google.com/folderview?id=$ID
       fi
       cd ..
       
