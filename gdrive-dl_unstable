@@ -384,7 +384,7 @@ then
   do
     output Confirming "$a"
     URL=$(grep '/uc?export=download' "$a" | sed 's|.*uc?export=download|uc?export=download|' | sed 's|\".*||')
-    perl "${SCRIPT_%/*}/gdown.pl" 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$a"
+    perl "${_SCRIPT_%/*}/gdown.pl" 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$a"
   done
 fi
 
