@@ -5,7 +5,7 @@
 #
 #  Some documentaions and help phrases are copied, as-is or with change, from GNU grep, GNU wget, and youtube-dl.
 #
-_VERSION_='2015.01.11-unstable'
+_VERSION_='2015.01.14-unstable'
 _BRANCH_='u' # used for update. where u: unstable, t: testing, s: stable
 
 # $_MODE_:
