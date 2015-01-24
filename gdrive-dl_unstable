@@ -5,7 +5,7 @@
 #
 #  Some documentaions and help phrases are copied, as-is or with change, from GNU grep, GNU wget, and youtube-dl.
 #
-_VERSION_='2015.01.14-unstable'
+_VERSION_='2015.01.24-unstable'
 _BRANCH_='u' # used for update. where u: unstable, t: testing, s: stable
 
 # $_MODE_:
@@ -53,8 +53,7 @@ function download()
       wget -nv -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part" \
       $([[ "$_RATE_" == "" ]] || echo "--limit-rate=$_RATE_") \
       $([[ "$_WO_" == "" ]] || echo "$_WO_")
-    fi
-    mv "$2"{.part,}
+    fi && mv "$2"{.part,} # only executed if wget succeeds
   fi
 }
 
