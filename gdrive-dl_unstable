@@ -5,7 +5,7 @@
 #
 #  Some documentaions and help phrases are copied, as-is or with change, from GNU grep, GNU wget, and youtube-dl.
 #
-_VERSION_='2015.01.24-unstable'
+_VERSION_='2015.10.19-unstable'
 _BRANCH_='u' # used for update. where u: unstable, t: testing, s: stable
 
 # $_MODE_:
@@ -34,8 +34,10 @@ function download()
 {
   # $1 is $ID, $2 is $TITLE/$FILENAME
   
-  # Download Only files that end in .part, or do not exist
-  if [ -f "${TITLE}.part" ] || [ ! -f "${TITLE}" ]
+  # Download Only files that end in .part, do not exist, or found but with a different size.
+  size=$(wget -q "https://docs.google.com/uc?id=${ID}&export=download" --save-headers -O - | head -n 20 | grep Content-Length: | sed 's/[^0-9]*//g')
+  [ "$size" == "" ] && size=$(stat -c %s "${TITLE}") # Some files doesn't have size. We don't redownload them by default.
+  if [ -f "${TITLE}.part" ] || [ ! -f "${TITLE}" ] || [ $(stat -c %s "${TITLE}") -ne $size ]
   then
     if [ "$_MODE_" == "1" ] # quiet
     then
