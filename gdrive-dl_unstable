@@ -5,8 +5,15 @@
 #
 #  Some documentaions and help phrases are copied, as-is or with change, from GNU grep, GNU wget, and youtube-dl.
 #
-_VERSION_='2015.10.19-unstable'
+_VERSION_='2015.11.10-unstable'
 _BRANCH_='u' # used for update. where u: unstable, t: testing, s: stable
+
+trash='t' # Trashing Behaviour: 't' for trash (send them to a hidden folder in their parent folder)
+          #                     'r' for remove (remove them completely)
+
+trashbin='TRASH' # a hidden folder created in every folder, to send the trashed files and folders to.
+                 # It must be hidden (starting its name with a dot); So, this dot is included in the code,
+                 #+ to avoid any problems could happen if missed.
 
 # $_MODE_:
 #   null: normal, # output the pwd & the summary of downloaded file (if any)
@@ -30,14 +37,33 @@ done
 
 ## FUNCTIONS
 
+trash() # remove files and folders that are no longer online from the local copy
+{
+  # $1 is the trashed file or folder
+  case "$trash" in
+  't')
+    [ "$_MODE_" != "1" ] && echo 'Trashing '$1
+    mkdir -p ".$trashbin"
+    mv -f "$1" ".$trashbin"
+    ;;
+  'r')
+    [ "$_MODE_" != "1" ] && echo 'Removing '$1
+    rm -rf "$1"
+    ;;
+  esac
+}
+
 function download()
 {
   # $1 is $ID, $2 is $TITLE/$FILENAME
   
   # Download Only files that end in .part, do not exist, or found but with a different size.
-  size=$(wget -q "https://docs.google.com/uc?id=${ID}&export=download" --save-headers -O - | head -n 20 | grep Content-Length: | sed 's/[^0-9]*//g')
-  [ "$size" == "" ] && size=$(stat -c %s "${TITLE}") # Some files doesn't have size. We don't redownload them by default.
-  if [ -f "${TITLE}.part" ] || [ ! -f "${TITLE}" ] || [ $(stat -c %s "${TITLE}") -ne $size ]
+  if [ "$_OVERWRITE_" == "1" ]
+  then
+    size=$(wget -q "https://docs.google.com/uc?id=${ID}&export=download" --save-headers -O - | head -n 20 | grep Content-Length: | sed 's/[^0-9]*//g')
+    [ "$size" == "" ] && size=$(stat -c %s "${TITLE}" 2>/dev/null) # Some files doesn't have size. We don't redownload them by default.
+  fi
+  if [ -f "${TITLE}.part" ] || [ ! -f "${TITLE}" ] || ( [ "$_OVERWRITE_" == "1" ] && [ $(stat -c %s "${TITLE}") -ne $size ] )
   then
     if [ "$_MODE_" == "1" ] # quiet
     then
@@ -141,6 +167,9 @@ Downloading Options:
                          as a place to download in, instead of
                          the current directory.
   -wo, --wget-option=OPT  if you want to provide specific wget options.
+  -o,  --overwrite       if a Drive file is updated, overwrite the local
+                         one with the new copy
+  -t,  --trash           trash the no-longer-online files and folders
   
 Output Options:
   -q,  --quiet           suppress all normal output.
@@ -207,6 +236,12 @@ do
     '--auto-detect-dirs'|'-ad')
       _AUTO_DETECT_DIRS_=1
       ;;
+    '--trash'|'-t')
+      _TRASH_=1
+      ;;
+    '--overwrite'|'-o')
+      _OVERWRITE_=1
+      ;;
     '--wget-option='*|'-wo='*)
       [ -n "$_WO_" ] && _WO_WARN_=1 || export _WO_="${i#*=}"
       ;;
@@ -217,7 +252,7 @@ do
       [ -n "$_MODE_" ] && _MODE_WARN_=1 || export _MODE_=2
       ;;
     '--mode='*)
-      # It's supposed to be set only one time. Otherwise, the last one will the only one to have the effect.
+      # It's supposed to be set only one time. Otherwise, the last one will be the only one to have an effect.
       # It's made to be used only by the script, but the user can use it also.
       export _MODE_=${i//--mode=/}
       ;;
@@ -308,6 +343,16 @@ do
         NOWPATH="$TITLE/"
       fi
     fi
+    
+    # Trashing the no-longer-online files and folders first
+    [ "$_TRASH_" == "1" ] && # only if wanted
+    ls | while read a
+    do
+      #echo $FILE_0 | grep 'class="flip-entry-title">'[ \t]*$a[ \t]*'</div>'
+      grep 'class="flip-entry-title">'"[ \t]*$a[ \t]*"'</div>' <<< "$FILE_0" &>/dev/null
+      [ $? -eq 0 ] && continue || [ $? -eq 1 ] && trash "$a"
+      # if found; then  ...   else if not found; then ...
+    done
     
     # Downloading files, before folders
     until [ "$FILE_F" = "${FILE_F#*flip-entry-title\">}" ]
