@@ -11,7 +11,6 @@ Installation
 ------------
 Just download the two files `gdrive-dl` and `gdown.pl` and give them the proper permissions, then use `gdrive-dl` as shown below in the Help (Usage) section.
 
-
 Requirements
 ------------
 * bash
@@ -55,6 +54,9 @@ Downloading Options:
                          as a place to download in, instead of
                          the current directory.
   -wo, --wget-option=OPT  if you want to provide specific wget options.
+  -o,  --overwrite       if a Drive file is updated, overwrite the local
+                         one with the new copy
+  -t,  --trash           trash the no-longer-online files and folders
   
 Output Options:
   -q,  --quiet           suppress all normal output.
@@ -106,24 +108,21 @@ The Stages (The develepment cycle)
 ----------------------------------
 It's Unstable -> Testing -> Stable.
 
-Unstable is the only version to be modified by the developers
-and contributors. It's supposed to be used by the developers
-only, not the end users; because it may be very buggy.  
+`Unstable` is the only version to be modified by the developers
+and contributors. It's supposed to be used by the developers,  
+not the end users; because it may be buggy.  
 Its version number (a date) indicates when it's changed the last time.
 
-Testing is nothing more than an unstable version that just works
+`Testing` is nothing more than an unstable version that just works
 fine without visible bugs. In this stage, it is tested just to make
-sure that there are not any bugs.<br/>
-Its version number (a date) indicates when it has become a testing
-version.
+sure that there are not any bugs.  
+Its version number (a date) indicates when it has become a testing version.
 
-Stable is a testing version after being tested to make sure that
+`Stable` is a testing version after being tested to make sure that
 it's stable enough for a very normal end user that expects no errors.  
-Its version number (a date) indicates when it has become a stable
-version.
+Its version number (a date) indicates when it has become a stable version.
 
-The first stable release will be in February, 2015.  
-Any contributions are  appreciated.
+Any contributions are appreciated.
 
 Authors
 ------------
