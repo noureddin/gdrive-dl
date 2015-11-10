@@ -108,18 +108,13 @@ The Stages (The develepment cycle)
 ----------------------------------
 It's Unstable -> Testing -> Stable.
 
-`Unstable` is the only version to be modified by the developers
-and contributors. It's supposed to be used by the developers,  
-not the end users; because it may be buggy.  
+`Unstable` is the only version to be modified by the developers and contributors. It's supposed to be used by the developers, not the end users; because it may be buggy.  
 Its version number (a date) indicates when it's changed the last time.
 
-`Testing` is nothing more than an unstable version that just works
-fine without visible bugs. In this stage, it is tested just to make
-sure that there are not any bugs.  
+`Testing` is nothing more than an unstable version that just works fine without visible bugs. In this stage, it is tested just to make sure that there are not any bugs.  
 Its version number (a date) indicates when it has become a testing version.
 
-`Stable` is a testing version after being tested to make sure that
-it's stable enough for a very normal end user that expects no errors.  
+`Stable` is a testing version after being tested to make sure that it's stable enough for a very normal end user that expects no errors.  
 Its version number (a date) indicates when it has become a stable version.
 
 Any contributions are appreciated.
