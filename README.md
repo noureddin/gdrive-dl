@@ -53,7 +53,7 @@ Downloading Options:
   -cd, --directory=DIR   change to directory DIR; i.e., use it
                          as a place to download in, instead of
                          the current directory.
-  -wo, --wget-option=OPT  if you want to provide specific wget options.
+  -wo, --wget-option=OPT  if you want to provide specific Wget options.
   -o,  --overwrite       if a Drive file is updated, overwrite the local
                          one with the new copy
   -t,  --trash           trash the no-longer-online files and folders
@@ -62,6 +62,7 @@ Output Options:
   -q,  --quiet           suppress all normal output.
   -v,  --verbose         output more information than usual.
   -d,  --debug           output much debugging information.
+  -nc, --no-colors       output in plain text.
 
 Confirming Options:
   to get the big files that Google does not allow to download them
@@ -126,9 +127,11 @@ Authors
 ------------
  Nour eddin M. (noureddin95@gmail.com)
 
-Please notice that `gdown.pl` is not developed by the author of `gdrive-dl`; it's developed by Circulosmeos. See below.
+Please note that `gdown.pl` is not developed by the author of `gdrive-dl`; it's developed by Circulosmeos. See below.
 
-Resources used in `gdrive-dl`  
+####Resources used in `gdrive-dl`  
 -  http://www.funbutlearn.com/2013/02/direct-download-link-to-your-google.html  
+-  http://www.labnol.org/internet/direct-links-for-google-drive/28356/
 -  http://circulosmeos.wordpress.com/2014/04/12/google-drive-direct-download-of-big-files
+-  http://mywiki.wooledge.org/BashPitfalls
 
