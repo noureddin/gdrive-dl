@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
+_VERSION_='2015.11.15-unstable'
+_BRANCH_='unstable' # used for update.
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 #
 #  Some documentations and help phrases are copied, as-is or with change, from GNU grep, GNU wget, and youtube-dl.
 #
-_VERSION_='2015.11.15-unstable'
-_BRANCH_='u' # used for update. where u: unstable, t: testing, s: stable
 
 trash='t' # Trashing Behavior: 't' for trash (send them to a hidden folder in their parent folder)
           #+                   'r' for remove (remove them completely)
@@ -322,12 +322,13 @@ do
       ;;
     '--update'|'-U')
       [ "$_MODE_" != "1" ] && echo -n 'Updating to '
-      t=$(wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}")
-      if [ -n "$t" ] # t="YYYY.MM.DD-BRANCH master/gdrive-dl_BRANCH" : "version link_to_gdrive-dl"
+      v=$(wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/gdrive-dl_'$_BRANCH_ -O - | head -n 2)
+      v=${v%\'*}; v=${v#*\'}
+      if [ -n "$v" ]
       then
-        [ "$_MODE_" != "1" ] && echo ${t%% *}
-        ( wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/'"${t#* }" -O ${_SCRIPT_} & )
-        exit
+        [ "$_MODE_" != "1" ] && echo "$v"
+        ( wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/gdrive-dl_'$_BRANCH_ -O ${_SCRIPT_} &&
+          ( [ "$_MODE_" != "1" ] && echo 'Updating finished successfully!' ) || ( [ "$_MODE_" != "1" ] && echo 'Updating FAILED!' ); exit & )
       else
         [ "$_MODE_" != "1" ] && echo 'N/A'
       fi
@@ -335,8 +336,8 @@ do
     '--check-update'|'-cu')
       echo    'Your current version is  '"${_VERSION_}"
       echo -n 'The  latest  version is  '
-      t=$(wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}")
-      [ -n "$t" ] && echo ${t%% *} || echo 'N/A'
+      v=$(wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/gdrive-dl_'$_BRANCH_ -O - | head -n 2)
+      v=${v%\'*}; v=${v#*\'}; [ -n "$v" ] && echo "$v" || echo 'N/A'
       ;;
     '--version'|'-V')
       echo $_VERSION_
