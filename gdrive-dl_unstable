@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-_VERSION_='2015.11.15-1_unstable'
+_VERSION_='2015.11.15-2_unstable'
 _BRANCH_='unstable' # used for update.
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
@@ -328,7 +328,8 @@ do
       then
         [ "$_MODE_" != "1" ] && echo "$v"
         ( wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/gdrive-dl_'$_BRANCH_ -O ${_SCRIPT_} &&
-          ( [ "$_MODE_" != "1" ] && echo 'Updating finished successfully!' ) || ( [ "$_MODE_" != "1" ] && echo 'Updating FAILED!' ); exit & )
+          ( [ "$_MODE_" != "1" ] && echo 'Updating finished successfully!' ) || ( [ "$_MODE_" != "1" ] && echo 'Updating FAILED!' ) & )
+        exit
       else
         [ "$_MODE_" != "1" ] && echo 'N/A'
       fi
