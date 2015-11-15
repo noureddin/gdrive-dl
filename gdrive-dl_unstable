@@ -5,7 +5,7 @@
 #
 #  Some documentations and help phrases are copied, as-is or with change, from GNU grep, GNU wget, and youtube-dl.
 #
-_VERSION_='2015.11.12-unstable'
+_VERSION_='2015.11.15-unstable'
 _BRANCH_='u' # used for update. where u: unstable, t: testing, s: stable
 
 trash='t' # Trashing Behavior: 't' for trash (send them to a hidden folder in their parent folder)
@@ -396,7 +396,7 @@ do
     [ "$_TRASH_" == "1" ] && # only if wanted
     for a in *  # http://mywiki.wooledge.org/BashPitfalls#for_i_in_.24.28ls_.2A.mp3.29
     do
-      [ -e "$i" ] || continue
+      [ "$a" == '*' ] && break
       # Reversing the title-escaping procedure
       b="${a//'&'/'&amp;'}"
       b="${b//\'/'&#39;'}"
@@ -404,7 +404,9 @@ do
       b="${b//'['/'\['}"  # for grep
       b="${b//']'/'\]'}"  # for grep
       b="${b//'-'/'[-/:]'}"
-      grep 'class="flip-entry-title">'"[ \t]*${b%.part}(.pdf)+[ \t]*"'</div>' <<< "$FILE_0" &>/dev/null
+      b="${b%.part}"
+      b="${b%.pdf}\(.pdf\)\?" # we add an additional ".pdf" to Google Docs
+      grep 'class="flip-entry-title">'"[ \t]*${b}[ \t]*"'</div>' <<< "$FILE_0" &>/dev/null
       [ $? -eq 0 ] && continue || [ $? -eq 1 ] && trash "$a"
       # if found; then  ...   else if not found; then ...
     done
