@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-_VERSION_='2015.11.15-unstable'
+_VERSION_='2015.11.15-1_unstable'
 _BRANCH_='unstable' # used for update.
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
