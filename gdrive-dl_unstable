@@ -327,8 +327,7 @@ do
       if [ -n "$v" ]
       then
         [ "$_MODE_" != "1" ] && echo "$v"
-        ( wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/gdrive-dl_'$_BRANCH_ -O ${_SCRIPT_} &&
-          ( [ "$_MODE_" != "1" ] && echo 'Updating finished successfully!' ) || ( [ "$_MODE_" != "1" ] && echo 'Updating FAILED!' ) & )
+        ( wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/gdrive-dl_'$_BRANCH_ -O ${_SCRIPT_} & )
         exit
       else
         [ "$_MODE_" != "1" ] && echo 'N/A'
