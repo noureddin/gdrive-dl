@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-_VERSION_='2015.11.15-2_unstable'
+_VERSION_='2015.11.18_unstable'
 _BRANCH_='unstable' # used for update.
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
@@ -13,7 +13,8 @@ trash='t' # Trashing Behavior: 't' for trash (send them to a hidden folder in th
 
 trashbin='TRASH' # a hidden folder created in every folder, to send the trashed files and folders to.
                  # It must be hidden; ie, its name must start with a dot; So, this dot is included in the code,
-                 #+ to avoid any problems could happen if missed.
+                 #+ to avoid any problem could happen if missed.
+idlist='IDs' # a hidden file in each folder. It contains the ID and the name of its parent folder contents.
 
 # $_MODE_:
 #   null: normal, # output the pwd & the summary of downloaded file (if any)
@@ -93,12 +94,27 @@ function download()
 
 function title_escape()
 {
-  TITLE="${TITLE//'&amp;'/'&'}" # fix &
-  TITLE="${TITLE//'/'/'-'}" # replace / with -
-  TITLE="${TITLE//':'/'-'}" # replace : with -
-  TITLE="${TITLE//'&#39;'/\'}" # replace &#39; with '
-  TITLE="${TITLE//'&quot;'/\"}" # replace &quot; with "
-  TITLE="$(echo "$TITLE" | sed 's/^[ \t]*//;s/[ \t]*$//')" # trim leading & trailing spaces - if found
+  t="${1//'&amp;'/'&'}" # fix &
+  t="${t//'/'/'-'}" # replace / with -
+  t="${t//':'/'-'}" # replace : with -
+  t="${t//'&#39;'/\'}" # replace &#39; with '
+  t="${t//'&quot;'/\"}" # replace &quot; with "
+  t="$(echo "$t" | sed 's/^[ \t]*//;s/[ \t]*$//')" # trim leading & trailing spaces - if found
+  echo "$t"
+}
+
+function title_reverse()
+{
+  # Reversing the title-escaping procedure, adapted to grep
+  t="${1//'&'/'&amp;'}"
+  t="${t//\'/'&#39;'}"
+  t="${t//\"/'&quot;'}"
+  t="${t//'['/'\['}"  # for grep
+  t="${t//']'/'\]'}"  # for grep
+  t="${t//'-'/'[-/:]'}"
+  t="${t%.part}"
+  t="${t%.pdf}\(.pdf\)\?" # we add an additional ".pdf" to Google Docs
+  echo "$t"
 }
 
 function chex() # Choose and Exclude
@@ -113,8 +129,8 @@ function chex() # Choose and Exclude
   if [ ${#_CHOOSE_[@]} -ne 0 ]
   # the user used CHOOSE
   then
-    if ! for i in "${_CHOOSE_[@]}";do echo $i;done | grep -q ^"$TITLE"$
-    # $TITLE is NOT in $_CHOOSE_
+    if ! for i in "${_CHOOSE_[@]}";do echo $i;done | grep -q ^"$1"$
+    # $TITLE($1) is NOT in $_CHOOSE_
     then
       continue
     fi
@@ -123,8 +139,8 @@ function chex() # Choose and Exclude
   if [ ${#_EXCLUDE_[@]} -ne 0 ]
   # the user used EXCLUDE
   then
-    if for i in "${_EXCLUDE_[@]}";do echo $i;done | grep -q ^"$TITLE"$
-    # $TITLE is in $_EXCLUDE_
+    if for i in "${_EXCLUDE_[@]}";do echo $i;done | grep -q ^"$1"$
+    # $TITLE($1) is in $_EXCLUDE_
     then 
       continue
     fi
@@ -371,7 +387,7 @@ do
   *file*)
     TITLE=$(wget -q "$i" -O -)
     TITLE=${TITLE#*<title>}; TITLE=${TITLE%% - Google Drive</title>*}
-    title_escape
+    TITLE=$(title_escape "$TITLE")
     ID=$(echo ${i//*0B/0B} | sed 's|/.*||') # TODO: Google Doc
     download "$ID" "$TITLE"
     ;;
@@ -383,7 +399,7 @@ do
     if [ "$_AUTO_DETECT_DIRS_" == "1" ]
     then
       TITLE=${FILE_0#*<title>}; TITLE=${TITLE%%</title>*}
-      title_escape
+      TITLE=$(title_escape "$TITLE")
       mkdir -p "$TITLE"
       cd "$TITLE"
       if [ "$_MODE_" != "1" ] # not quiet
@@ -393,55 +409,89 @@ do
       fi
     fi
     
-    # Trashing the no-longer-online files and folders first
-    [ "$_TRASH_" == "1" ] && # only if wanted
-    for a in *  # http://mywiki.wooledge.org/BashPitfalls#for_i_in_.24.28ls_.2A.mp3.29
-    do
-      [ "$a" == '*' ] && break
-      # Reversing the title-escaping procedure
-      b="${a//'&'/'&amp;'}"
-      b="${b//\'/'&#39;'}"
-      b="${b//\"/'&quot;'}"
-      b="${b//'['/'\['}"  # for grep
-      b="${b//']'/'\]'}"  # for grep
-      b="${b//'-'/'[-/:]'}"
-      b="${b%.part}"
-      b="${b%.pdf}\(.pdf\)\?" # we add an additional ".pdf" to Google Docs
-      grep 'class="flip-entry-title">'"[ \t]*${b}[ \t]*"'</div>' <<< "$FILE_0" &>/dev/null
-      [ $? -eq 0 ] && continue || [ $? -eq 1 ] && trash "$a"
-      # if found; then  ...   else if not found; then ...
-    done
-    
-    # Downloading
+    # Getting the IDs and TITLEs
     until [ "$FILE" = "${FILE#*flip-entry-title\">}" ]
     do
       ID=${FILE#*id=\"entry-}; ID=${ID%%\"*}
       FILE=${FILE#*flip-entry-title\">}
       
       TITLE=${FILE%%</div*}
-      title_escape
+      TITLE=$(title_escape "$TITLE")
       
-      chex # Choose and Exclude
+      OIDs=("${OIDs[@]}" "$ID")
+      [ "${ID:0:1}" == '0' ] && # not Google Doc
+        OTITLEs=("${OTITLEs[@]}" "$TITLE") ||
+        OTITLEs=("${OTITLEs[@]}" "$TITLE.pdf")
+      
+      chex "$TITLE" # Choose and Exclude
       
       IDs=("${IDs[@]}" "$ID")
-      TITLEs=("${TITLEs[@]}" "$TITLE")
+      [ "${ID:0:1}" == '0' ] && # not Google Doc
+        TITLEs=("${TITLEs[@]}" "$TITLE") ||
+        TITLEs=("${TITLEs[@]}" "$TITLE.pdf")
     done
     unset FILE
+    
+    touch ".$idlist"
+    
+    # First, check if a file or folder is renamed or removed.
+    for index in ${!OIDs[@]}
+    do
+      title=$(grep "${OIDs[$index]}" ".$idlist"); title=${title#* }
+      if [ "$title" != "${OTITLEs[$index]}" ] # renamed, or Google Doc (with an additional '.pdf'), or even not downloaded
+      then
+        if [ -e "$title" ] # renamed
+        then
+          mv "$title" "${OTITLEs[$index]}"
+          [ "$_MODE_" != "1" ] && outecho "Renaming \"$title\" to \"${OTITLEs[$index]}\""
+        fi
+        sed -i "/^${OIDs[$index]} .*/d" ".$idlist"
+        echo "${OIDs[$index]} ${OTITLEs[$index]}" >> ".$idlist"
+      fi
+    done
+    
+    # Trashing the no-longer-online files and folders before downloading.
+    if [ "$_TRASH_" == "1" ]
+    then
+      ids=$(wc -l ".$idlist"); ids=${ids%% *};
+      if [ $ids -gt ${#OID[@]} ]
+      then
+        cat ".$idlist" | while read x
+        do
+          case "${OIDs[*]}" in
+          *"${x%% *}"*) continue;;
+          *)
+            trash "${x#* }"
+            sed -i "/^${x%% *} .*/d" ".$idlist"
+            ;;
+          esac
+        done
+        for a in *  # http://mywiki.wooledge.org/BashPitfalls#for_i_in_.24.28ls_.2A.mp3.29
+        do
+          [ "$a" == '*' ] && break
+          a="${a//'['/'\['}"
+          a="${a//']'/'\]'}"
+          grep "^[a-zA-Z0-9_]* $a$" ".$idlist" &>/dev/null
+          [ $? -eq 0 ] && continue || [ $? -eq 1 ] && trash "$a"
+          # if found; then  ...   else if not found; then ...
+        done
+      fi
+    fi
     
     # Files First !
     for index in ${!IDs[@]}
     do
       case "$FILE_0" in # http://www.labnol.org/internet/direct-links-for-google-drive/28356/
       *'/docs.google.com/document/d/'${IDs[$index]}*) # Google Document
-        download "https://docs.google.com/document/d/${IDs[$index]}/export?format=pdf" "${TITLEs[$index]}.pdf"
+        download "https://docs.google.com/document/d/${IDs[$index]}/export?format=pdf" "${TITLEs[$index]}"
         IDs[$index]=; TITLEs[$index]=;
         ;;
       *'/docs.google.com/presentation/d/'${IDs[$index]}*) # Google Presentation
-        download "https://docs.google.com/presentation/d/${IDs[$index]}/export/pdf" "${TITLEs[$index]}.pdf"
+        download "https://docs.google.com/presentation/d/${IDs[$index]}/export/pdf" "${TITLEs[$index]}"
         IDs[$index]=; TITLEs[$index]=;
         ;;
       *'/docs.google.com/spreadsheets/d/'${IDs[$index]}*) # Google Spreadsheets
-        download "https://docs.google.com/spreadsheets/d/${IDs[$index]}/export?format=pdf" "${TITLEs[$index]}.pdf"
+        download "https://docs.google.com/spreadsheets/d/${IDs[$index]}/export?format=pdf" "${TITLEs[$index]}"
         IDs[$index]=; TITLEs[$index]=;
         ;;
       *'/drive.google.com/uc?id\u003d'${IDs[$index]}*) # Regular File
