@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-_VERSION_='2015.11.18_unstable'
+_VERSION_='2015.12.14_unstable'
 _BRANCH_='unstable' # used for update.
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
@@ -54,17 +54,22 @@ trash() # remove files and folders that are no longer online from the local copy
   esac
 }
 
-function download()
+download()
 {
   # $1 is $ID, $2 is $TITLE/$FILENAME
-  
+  u=; # for update files
   # Download Only files that end in .part, do not exist, or found but with a different size.
   if [ "$_OVERWRITE_" == "1" ]
   then
     size=$(wget -q "$1" --save-headers -O - | head -n 20 | grep Content-Length: | sed 's/[^0-9]*//g')
     [ "$size" == "" ] && size=$(stat -c %s "$2" 2>/dev/null) # Some files doesn't have size. We don't redownload them by default.
+    if [ -e "$2" ] && [ "$(stat -c %s "$2" 2>/dev/null)" != "$size" ]
+    then
+      (_MODE_=1; trash "$2";)
+      u=1
+    fi
   fi
-  if [ -f "$2.part" ] || [ ! -f "$2" ] || ( [ "$_OVERWRITE_" == "1" ] && [ $(stat -c %s "$2") -ne $size ] )
+  if [ -f "$2.part" ] || [ ! -f "$2" ]
   then
     if [ "$_MODE_" == "1" ] # quiet
     then
@@ -73,12 +78,12 @@ function download()
       $([[ "$_WO_" == "" ]] || echo "$_WO_")
     elif [ "$_MODE_" == "2" ] || [ "$_MODE_" == "3" ] # verbose or debug
     then
-      outecho "$2"
+      [ "$u" == 1 ] && { outupdate "$2"; echo; } || { outget "$2"; echo; }
       wget -c "$1" -O "$2.part" \
       $([[ "$_RATE_" == "" ]] || echo "--limit-rate=$_RATE_") \
       $([[ "$_WO_" == "" ]] || echo "$_WO_")
     else # neither quiet, nor verbose; i.e., normal
-      outget "$2"
+      [ "$u" == 1 ] && outupdate "$2" || outget "$2"
       wget -q -c "$1" -O "$2.part" \
       $([[ "$_RATE_" == "" ]] || echo "--limit-rate=$_RATE_") \
       $([[ "$_WO_" == "" ]] || echo "$_WO_") &&
@@ -92,7 +97,7 @@ function download()
   fi
 }
 
-function title_escape()
+title_escape()
 {
   t="${1//'&amp;'/'&'}" # fix &
   t="${t//'/'/'-'}" # replace / with -
@@ -103,7 +108,7 @@ function title_escape()
   echo "$t"
 }
 
-function title_reverse()
+title_reverse()
 {
   # Reversing the title-escaping procedure, adapted to grep
   t="${1//'&'/'&amp;'}"
@@ -117,7 +122,7 @@ function title_reverse()
   echo "$t"
 }
 
-function chex() # Choose and Exclude
+chex() # Choose and Exclude
 {
   if [ ${#_CHOOSE_[@]} -ne 0 ] &&  [ ${#_EXCLUDE_[@]} -ne 0 ]
   # if the user used CHOOSE and EXCLUDE at the same time
@@ -147,7 +152,7 @@ function chex() # Choose and Exclude
   fi
 }
 
-function outecho() # echo the given string, surrounded by bold '*'s
+outecho() # echo the given string, surrounded by bold '*'s
 {
   if [ "$_NO_COLORS_" == "1" ]
   then  echo " * $@ *";
@@ -155,7 +160,7 @@ function outecho() # echo the given string, surrounded by bold '*'s
   fi
 }
 
-function outget() # outecho for "Getting"-messages
+outget() # outecho for "Getting"-messages
 {
   if [ "$_NO_COLORS_" == "1" ]
   then  echo -n " * Getting $@ * ";
@@ -163,7 +168,15 @@ function outget() # outecho for "Getting"-messages
   fi
 }
 
-function outdone() # outecho for "Done"-messages
+outupdate() # outecho for "Updating"-messages
+{
+  if [ "$_NO_COLORS_" == "1" ]
+  then  echo -n " * Updating $@ * ";
+  else  tput bold;echo -n ' * ';tput sgr0; echo -n "Updating $@"; tput bold;echo -n ' * ';tput sgr0
+  fi
+}
+
+outdone() # outecho for "Done"-messages
 {
   if [ "$_NO_COLORS_" == "1" ]
   then  echo "Done $@ *";
@@ -171,7 +184,7 @@ function outdone() # outecho for "Done"-messages
   fi
 }
 
-function outconfirm() # outecho for "CONFIRM"-messages
+outconfirm() # outecho for "CONFIRM"-messages
 {
   if [ "$_NO_COLORS_" == "1" ]
   then  echo 'CONFIRMATION REQUIRED *';
@@ -179,7 +192,7 @@ function outconfirm() # outecho for "CONFIRM"-messages
   fi
 }
 
-function outbold() # echo in bold
+outbold() # echo in bold
 {
   if [ "$_NO_COLORS_" == "1" ]
   then  echo "$@";
@@ -187,7 +200,7 @@ function outbold() # echo in bold
   fi
 }
 
-function outwarn() # output warnings to stderr, bold red for $1, then bold for $2
+outwarn() # output warnings to stderr, bold red for $1, then bold for $2
 {
   if [ "$_NO_COLORS_" == "1" ]
   then
@@ -197,7 +210,8 @@ function outwarn() # output warnings to stderr, bold red for $1, then bold for $
     >&2 tput bold; >&2 echo "$2"; >&2 tput sgr0
   fi
 }
-function help()
+
+help()
 {
   echo "Usage: $(basename "${BASH_SOURCE[0]}") [OPTION]... URL...
 Download from Google Drive an entire folder recursively,
