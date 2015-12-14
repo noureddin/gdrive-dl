@@ -1,18 +1,26 @@
 #!/usr/bin/env bash
+_VERSION_='2015.12.14_testing' # based on 2015.12.14_unstable
+_BRANCH_='testing' # used for update.
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 #
-#  Some documentaions and help phrases are copied, as-is or with change, from GNU grep, GNU wget, and youtube-dl.
+#  Some documentations and help phrases are copied, as-is or with change, from GNU grep, GNU wget, and youtube-dl.
 #
-_VERSION_='2015.01.24-testing' #'2015.01.24-unstable'
-_BRANCH_='u' # used for update. where u: unstable, t: testing, s: stable
+
+trash='t' # Trashing Behavior: 't' for trash (send them to a hidden folder in their parent folder)
+          #+                   'r' for remove (remove them completely)
+
+trashbin='TRASH' # a hidden folder created in every folder, to send the trashed files and folders to.
+                 # It must be hidden; ie, its name must start with a dot; So, this dot is included in the code,
+                 #+ to avoid any problem could happen if missed.
+idlist='IDs' # a hidden file in each folder. It contains the ID and the name of its parent folder contents.
 
 # $_MODE_:
 #   null: normal, # output the pwd & the summary of downloaded file (if any)
 #   1: quiet,     # do not output anything usual (output errors and warning only, if any)
 #   2: verbose,   # output the pwd & everything about the files downloading processes
-#   3: debug,     # output as much informtion as possible
+#   3: debug,     # output as much information as possible
 #
 
 for i in "$@"  # checking debug mode
@@ -30,57 +38,104 @@ done
 
 ## FUNCTIONS
 
-function download()
+trash() # remove files and folders that are no longer online from the local copy
+{
+  # $1 is the trashed file or folder
+  case "$trash" in
+  't')
+    [ "$_MODE_" != "1" ] && outecho 'Trashing '$1
+    mkdir -p ".$trashbin"
+    mv -f "$1" ".$trashbin"
+    ;;
+  'r')
+    [ "$_MODE_" != "1" ] && outecho 'Removing '$1
+    rm -rf "$1"
+    ;;
+  esac
+}
+
+download()
 {
   # $1 is $ID, $2 is $TITLE/$FILENAME
-  
-  # Download Only files that end in .part, or do not exist
-  if [ -f "${TITLE}.part" ] || [ ! -f "${TITLE}" ]
+  u=; # for update files
+  # Download Only files that end in .part, do not exist, or found but with a different size.
+  if [ "$_OVERWRITE_" == "1" ]
+  then
+    size=$(wget -q "$1" --save-headers -O - | head -n 20 | grep Content-Length: | sed 's/[^0-9]*//g')
+    [ "$size" == "" ] && size=$(stat -c %s "$2" 2>/dev/null) # Some files doesn't have size. We don't redownload them by default.
+    if [ -e "$2" ] && [ "$(stat -c %s "$2" 2>/dev/null)" != "$size" ]
+    then
+      (_MODE_=1; trash "$2";)
+      u=1
+    fi
+  fi
+  if [ -f "$2.part" ] || [ ! -f "$2" ]
   then
     if [ "$_MODE_" == "1" ] # quiet
     then
-      wget -q -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part" \
+      wget -q -c "$1" -O "$2.part" \
       $([[ "$_RATE_" == "" ]] || echo "--limit-rate=$_RATE_") \
       $([[ "$_WO_" == "" ]] || echo "$_WO_")
     elif [ "$_MODE_" == "2" ] || [ "$_MODE_" == "3" ] # verbose or debug
     then
-      echo Getting "$2"
-      wget -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part" \
+      [ "$u" == 1 ] && { outupdate "$2"; echo; } || { outget "$2"; echo; }
+      wget -c "$1" -O "$2.part" \
       $([[ "$_RATE_" == "" ]] || echo "--limit-rate=$_RATE_") \
       $([[ "$_WO_" == "" ]] || echo "$_WO_")
     else # neither quiet, nor verbose; i.e., normal
-      echo Getting "$2"
-      wget -nv -c "http://drive.google.com/uc?id=$1&e=download" -O "$2.part" \
+      [ "$u" == 1 ] && outupdate "$2" || outget "$2"
+      wget -q -c "$1" -O "$2.part" \
       $([[ "$_RATE_" == "" ]] || echo "--limit-rate=$_RATE_") \
-      $([[ "$_WO_" == "" ]] || echo "$_WO_")
+      $([[ "$_WO_" == "" ]] || echo "$_WO_") &&
+      (
+        if [ $(stat -c %s "$2.part") -le 4000 ] && grep -q '/uc?export=download' "$2.part" 
+        then  outconfirm
+        else  outdone '('$(a=`ls "$2.part" -hs`; echo ${a%% *})')'
+        fi
+      )
     fi && mv "$2"{.part,} # only executed if wget succeeds
   fi
 }
 
-function title_escape()
+title_escape()
 {
-  TITLE="${TITLE//'&amp;'/'&'}" # fix &
-  TITLE="${TITLE//'/'/'-'}" # replace / with -
-  TITLE="${TITLE//':'/'-'}" # replace : with -
-  TITLE="${TITLE//'&#39;'/\'}" # replace &#39; with '
-  TITLE="${TITLE//'&quot;'/\"}" # replace &quot; with "
-  TITLE="$(echo "$TITLE" | sed 's/^[ \t]*//;s/[ \t]*$//')" # trim leading & trailing spaces - if found
+  t="${1//'&amp;'/'&'}" # fix &
+  t="${t//'/'/'-'}" # replace / with -
+  t="${t//':'/'-'}" # replace : with -
+  t="${t//'&#39;'/\'}" # replace &#39; with '
+  t="${t//'&quot;'/\"}" # replace &quot; with "
+  t="$(echo "$t" | sed 's/^[ \t]*//;s/[ \t]*$//')" # trim leading & trailing spaces - if found
+  echo "$t"
 }
 
-function chex() # Choose and Exclude
+title_reverse()
+{
+  # Reversing the title-escaping procedure, adapted to grep
+  t="${1//'&'/'&amp;'}"
+  t="${t//\'/'&#39;'}"
+  t="${t//\"/'&quot;'}"
+  t="${t//'['/'\['}"  # for grep
+  t="${t//']'/'\]'}"  # for grep
+  t="${t//'-'/'[-/:]'}"
+  t="${t%.part}"
+  t="${t%.pdf}\(.pdf\)\?" # we add an additional ".pdf" to Google Docs
+  echo "$t"
+}
+
+chex() # Choose and Exclude
 {
   if [ ${#_CHOOSE_[@]} -ne 0 ] &&  [ ${#_EXCLUDE_[@]} -ne 0 ]
   # if the user used CHOOSE and EXCLUDE at the same time
   then
-    outwarn 'ERROR: ' 'Choose and Exclude are used at the same time.'
+    outwarn ' ERROR: ' 'Choose and Exclude are used at the same time.'
     exit 2
   fi
   
   if [ ${#_CHOOSE_[@]} -ne 0 ]
   # the user used CHOOSE
   then
-    if ! for i in "${_CHOOSE_[@]}";do echo $i;done | grep -q ^"$TITLE"$
-    # $TITLE is NOT in $_CHOOSE_
+    if ! for i in "${_CHOOSE_[@]}";do echo $i;done | grep -q ^"$1"$
+    # $TITLE($1) is NOT in $_CHOOSE_
     then
       continue
     fi
@@ -89,25 +144,74 @@ function chex() # Choose and Exclude
   if [ ${#_EXCLUDE_[@]} -ne 0 ]
   # the user used EXCLUDE
   then
-    if for i in "${_EXCLUDE_[@]}";do echo $i;done | grep -q ^"$TITLE"$
-    # $TITLE is in $_EXCLUDE_
+    if for i in "${_EXCLUDE_[@]}";do echo $i;done | grep -q ^"$1"$
+    # $TITLE($1) is in $_EXCLUDE_
     then 
       continue
     fi
   fi
 }
 
-function output() # bold
+outecho() # echo the given string, surrounded by bold '*'s
 {
-  tput bold;echo $@;tput sgr0
+  if [ "$_NO_COLORS_" == "1" ]
+  then  echo " * $@ *";
+  else  tput bold;echo -n ' * ';tput sgr0; echo -n "$@"; tput bold;echo ' *';tput sgr0
+  fi
 }
 
-function outwarn() # output warning, bold red for $1, then bold (white) for $2
+outget() # outecho for "Getting"-messages
 {
-  echo -ne '\e[1;31m'"$1"'\e[m'
-  tput bold;echo "$2";tput sgr0
+  if [ "$_NO_COLORS_" == "1" ]
+  then  echo -n " * Getting $@ * ";
+  else  tput bold;echo -n ' * ';tput sgr0; echo -n "Getting $@"; tput bold;echo -n ' * ';tput sgr0
+  fi
 }
-function help()
+
+outupdate() # outecho for "Updating"-messages
+{
+  if [ "$_NO_COLORS_" == "1" ]
+  then  echo -n " * Updating $@ * ";
+  else  tput bold;echo -n ' * ';tput sgr0; echo -n "Updating $@"; tput bold;echo -n ' * ';tput sgr0
+  fi
+}
+
+outdone() # outecho for "Done"-messages
+{
+  if [ "$_NO_COLORS_" == "1" ]
+  then  echo "Done $@ *";
+  else  echo -n "Done $@"; tput bold;echo ' *';tput sgr0
+  fi
+}
+
+outconfirm() # outecho for "CONFIRM"-messages
+{
+  if [ "$_NO_COLORS_" == "1" ]
+  then  echo 'CONFIRMATION REQUIRED *';
+  else  echo -ne '\e[1;31mCONFIRMATION REQUIRED\e[m'; tput bold;echo ' *';tput sgr0
+  fi
+}
+
+outbold() # echo in bold
+{
+  if [ "$_NO_COLORS_" == "1" ]
+  then  echo "$@";
+  else  tput bold; echo "$@"; tput sgr0
+  fi
+}
+
+outwarn() # output warnings to stderr, bold red for $1, then bold for $2
+{
+  if [ "$_NO_COLORS_" == "1" ]
+  then
+    >&2 echo "$1" "$2"
+  else
+    >&2 echo -ne '\e[1;31m'"$1"'\e[m'
+    >&2 tput bold; >&2 echo "$2"; >&2 tput sgr0
+  fi
+}
+
+help()
 {
   echo "Usage: $(basename "${BASH_SOURCE[0]}") [OPTION]... URL...
 Download from Google Drive an entire folder recursively,
@@ -138,12 +242,16 @@ Downloading Options:
   -cd, --directory=DIR   change to directory DIR; i.e., use it
                          as a place to download in, instead of
                          the current directory.
-  -wo, --wget-option=OPT  if you want to provide specific wget options.
+  -wo, --wget-option=OPT  if you want to provide specific Wget options.
+  -o,  --overwrite       if a Drive file is updated, overwrite the local
+                         one with the new copy
+  -t,  --trash           trash the no-longer-online files and folders
   
 Output Options:
   -q,  --quiet           suppress all normal output.
   -v,  --verbose         output more information than usual.
   -d,  --debug           output much debugging information.
+  -nc, --no-colors       output in plain text.
 
 Confirming Options:
   to get the big files that Google does not allow to download them
@@ -164,7 +272,7 @@ Notice also that you cannot use both at the same time.
 Not using either '--quiet' or '--verbose' means the normal (default) mode.
 
 Notice that short options cannot be compound, that means you
-cannot use '-qc' as equivalent to '-q -c'; it will not be recognized.
+cannot use '-qc' as equivalent to '-q -c'; It will not be recognized.
 Also, you must use the equal sign '=' with both short and long options,
 if you assign them a value.
 "
@@ -183,7 +291,7 @@ do
       URLS=("${URLS[@]}" "${i//&*/}")
       ;;
     '--confirm'|'-c')
-      # to get the big files that google does not allow to download them directly without confirmation
+      # to get the big files that Google does not allow to download them directly without confirmation
       _CONFIRM_=1
       ;;
     '--confirm='*|'-c='*)
@@ -205,6 +313,15 @@ do
     '--auto-detect-dirs'|'-ad')
       _AUTO_DETECT_DIRS_=1
       ;;
+    '--trash'|'-t')
+      export _TRASH_=1
+      ;;
+    '--overwrite'|'-o')
+      export _OVERWRITE_=1
+      ;;
+    '--no-colors'|'-nc')
+      export _NO_COLORS_=1
+      ;;
     '--wget-option='*|'-wo='*)
       [ -n "$_WO_" ] && _WO_WARN_=1 || export _WO_="${i#*=}"
       ;;
@@ -215,7 +332,7 @@ do
       [ -n "$_MODE_" ] && _MODE_WARN_=1 || export _MODE_=2
       ;;
     '--mode='*)
-      # It's supposed to be set only one time. Otherwise, the last one will the only one to have the effect.
+      # It's supposed to be set only one time. Otherwise, the last one will be the only one to have an effect.
       # It's made to be used only by the script, but the user can use it also.
       export _MODE_=${i//--mode=/}
       ;;
@@ -234,23 +351,23 @@ do
       _BRANCH_="${i#*=}"
       ;;
     '--update'|'-U')
-      # to be improved
-      echo -n 'Updating to '
-      t=$(wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}")
-      if [ -n "$t" ] # t="YYYY.MM.DD-BRANCH master/gdrive-dl_BRANCH" : "version link_to_gdrive-dl"
+      [ "$_MODE_" != "1" ] && echo -n 'Updating to '
+      v=$(wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/gdrive-dl_'$_BRANCH_ -O - | head -n 2)
+      v=${v%\'*}; v=${v#*\'}
+      if [ -n "$v" ]
       then
-        echo ${t%% *}
-        ( wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/'"${t#* }" -O ${_SCRIPT_} & )
+        [ "$_MODE_" != "1" ] && echo "$v"
+        ( wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/gdrive-dl_'$_BRANCH_ -O ${_SCRIPT_} & )
         exit
       else
-        echo 'N/A'
+        [ "$_MODE_" != "1" ] && echo 'N/A'
       fi
       ;;
     '--check-update'|'-cu')
       echo    'Your current version is  '"${_VERSION_}"
       echo -n 'The  latest  version is  '
-      t=$(wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/VERSION' -O - | grep -- "-${_BRANCH_}")
-      [ -n "$t" ] && echo ${t%% *} || echo 'N/A'
+      v=$(wget -q 'https://raw.githubusercontent.com/noureddin/gdrive-dl/master/gdrive-dl_'$_BRANCH_ -O - | head -n 2)
+      v=${v%\'*}; v=${v#*\'}; [ -n "$v" ] && echo "$v" || echo 'N/A'
       ;;
     '--version'|'-V')
       echo $_VERSION_
@@ -258,21 +375,21 @@ do
     '--license'|'-L')
       echo 'License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.'
       ;;
-      '--debug'|'-d')
+    '--debug'|'-d')
       ;;
     *)
-      echo "'$i' is not recognized. Try '$(basename "${BASH_SOURCE[0]}") --help' for more information."
+      >&2 echo "'$i' is not recognized. Try '$(basename "${BASH_SOURCE[0]}") --help' for more information."
     ;;
   esac
 done
 
 [ "$_HELP_" == '1' ] && help # to print help only once
 
-[ "$_RATE_WARN_" == '1' ] && outwarn 'WARNING: ' '`--limit` and/or `-l` are used multiple times at the same time; Using the first one.'
+[ "$_RATE_WARN_" == '1' ] && outwarn ' WARNING: ' '`--limit` and/or `-l` are used multiple times at the same time; Using the first one.'
 
-[ "$_MODE_WARN_" ] && outwarn 'WARNING: ' 'Quiet, Verbose, and/or Debug are used at the same time; Using Debug or the first provided one.'
+[ "$_MODE_WARN_" ] && outwarn ' WARNING: ' 'Quiet, Verbose, and/or Debug are used at the same time; Using Debug or the first provided one.'
 
-[ "$_WO_WARN_" == '1' ] && outwarn 'WARNING: ' '`--wget-option` and/or `-wo` are used multiple times at the same time; Using the first one.'
+[ "$_WO_WARN_" == '1' ] && outwarn ' WARNING: ' '`--wget-option` and/or `-wo` are used multiple times at the same time; Using the first one.'
 
 # PRE MAIN _ END READING THE ARGUMENTS
 
@@ -284,90 +401,144 @@ do
   *file*)
     TITLE=$(wget -q "$i" -O -)
     TITLE=${TITLE#*<title>}; TITLE=${TITLE%% - Google Drive</title>*}
-    title_escape
-    ID=$(echo ${i//*0B/0B} | sed 's|/.*||')
+    TITLE=$(title_escape "$TITLE")
+    ID=$(echo ${i//*0B/0B} | sed 's|/.*||') # TODO: Google Doc
     download "$ID" "$TITLE"
     ;;
   *folder*)
-    FILE_0=$(wget -q "$i" -O -) # will not be modified
-    FILE_D=$FILE_0 # will be modified, for folders
-    FILE_F=$FILE_0 # will be modified, for files
+    FILE_0=$(wget -q "$i" -O -) # will NOT be modified
+    FILE=$FILE_0 # will be modified
     
-    # If auto_detect_dirs is choosen
+    # If auto_detect_dirs is chosen
     if [ "$_AUTO_DETECT_DIRS_" == "1" ]
     then
       TITLE=${FILE_0#*<title>}; TITLE=${TITLE%%</title>*}
-      title_escape
+      TITLE=$(title_escape "$TITLE")
       mkdir -p "$TITLE"
       cd "$TITLE"
       if [ "$_MODE_" != "1" ] # not quiet
       then
-        output Now in "$TITLE/"
+        outbold Now in "$TITLE/"
         NOWPATH="$TITLE/"
       fi
     fi
     
-    # Downloading files, before folders
-    until [ "$FILE_F" = "${FILE_F#*flip-entry-title\">}" ]
+    # Getting the IDs and TITLEs
+    until [ "$FILE" = "${FILE#*flip-entry-title\">}" ]
     do
-      ID=${FILE_F#*id=\"entry-}; ID=${ID%%\"*}
-      FILE_F=${FILE_F#*flip-entry-title\">}
-      case $FILE_0 in
-      *'/drive.google.com/folderview?id\u003d'$ID*) # is folder
-        continue
-        ;;
-      *'/drive.google.com/uc?id\u003d'$ID*) # is file
-        ;;
-      esac
-      TITLE=${FILE_F%%</div*}
-      title_escape
+      ID=${FILE#*id=\"entry-}; ID=${ID%%\"*}
+      FILE=${FILE#*flip-entry-title\">}
       
-      chex # Choose and Exclude
+      TITLE=${FILE%%</div*}
+      TITLE=$(title_escape "$TITLE")
       
-      download "$ID" "$TITLE"
+      OIDs=("${OIDs[@]}" "$ID")
+      [ "${ID:0:1}" == '0' ] && # not Google Doc
+        OTITLEs=("${OTITLEs[@]}" "$TITLE") ||
+        OTITLEs=("${OTITLEs[@]}" "$TITLE.pdf")
+      
+      chex "$TITLE" # Choose and Exclude
+      
+      IDs=("${IDs[@]}" "$ID")
+      [ "${ID:0:1}" == '0' ] && # not Google Doc
+        TITLEs=("${TITLEs[@]}" "$TITLE") ||
+        TITLEs=("${TITLEs[@]}" "$TITLE.pdf")
     done
-    unset FILE_F
+    unset FILE
     
+    touch ".$idlist"
     
-    # Downloading folders
-    until [ "$FILE_D" = "${FILE_D#*flip-entry-title\">}" ]
+    # First, check if a file or folder is renamed or removed.
+    for index in ${!OIDs[@]}
     do
-      ID=${FILE_D#*id=\"entry-}; ID=${ID%%\"*}
-      FILE_D=${FILE_D#*flip-entry-title\">}
-      
-      case $FILE_0 in
-      *'/drive.google.com/folderview?id\u003d'$ID*) # is folder
+      title=$(grep "${OIDs[$index]}" ".$idlist"); title=${title#* }
+      if [ "$title" != "${OTITLEs[$index]}" ] # renamed, or Google Doc (with an additional '.pdf'), or even not downloaded
+      then
+        if [ -e "$title" ] # renamed
+        then
+          mv "$title" "${OTITLEs[$index]}"
+          [ "$_MODE_" != "1" ] && outecho "Renaming \"$title\" to \"${OTITLEs[$index]}\""
+        fi
+        sed -i "/^${OIDs[$index]} .*/d" ".$idlist"
+        echo "${OIDs[$index]} ${OTITLEs[$index]}" >> ".$idlist"
+      fi
+    done
+    
+    # Trashing the no-longer-online files and folders before downloading.
+    if [ "$_TRASH_" == "1" ]
+    then
+      ids=$(wc -l ".$idlist"); ids=${ids%% *};
+      if [ $ids -gt ${#OID[@]} ]
+      then
+        cat ".$idlist" | while read x
+        do
+          case "${OIDs[*]}" in
+          *"${x%% *}"*) continue;;
+          *)
+            trash "${x#* }"
+            sed -i "/^${x%% *} .*/d" ".$idlist"
+            ;;
+          esac
+        done
+        for a in *  # http://mywiki.wooledge.org/BashPitfalls#for_i_in_.24.28ls_.2A.mp3.29
+        do
+          [ "$a" == '*' ] && break
+          a="${a//'['/'\['}"
+          a="${a//']'/'\]'}"
+          grep "^[a-zA-Z0-9_]* $a$" ".$idlist" &>/dev/null
+          [ $? -eq 0 ] && continue || [ $? -eq 1 ] && trash "$a"
+          # if found; then  ...   else if not found; then ...
+        done
+      fi
+    fi
+    
+    # Files First !
+    for index in ${!IDs[@]}
+    do
+      case "$FILE_0" in # http://www.labnol.org/internet/direct-links-for-google-drive/28356/
+      *'/docs.google.com/document/d/'${IDs[$index]}*) # Google Document
+        download "https://docs.google.com/document/d/${IDs[$index]}/export?format=pdf" "${TITLEs[$index]}"
+        IDs[$index]=; TITLEs[$index]=;
         ;;
-      *'/drive.google.com/uc?id\u003d'$ID*) # is file
-        continue
+      *'/docs.google.com/presentation/d/'${IDs[$index]}*) # Google Presentation
+        download "https://docs.google.com/presentation/d/${IDs[$index]}/export/pdf" "${TITLEs[$index]}"
+        IDs[$index]=; TITLEs[$index]=;
+        ;;
+      *'/docs.google.com/spreadsheets/d/'${IDs[$index]}*) # Google Spreadsheets
+        download "https://docs.google.com/spreadsheets/d/${IDs[$index]}/export?format=pdf" "${TITLEs[$index]}"
+        IDs[$index]=; TITLEs[$index]=;
+        ;;
+      *'/drive.google.com/uc?id\u003d'${IDs[$index]}*) # Regular File
+        download "https://docs.google.com/uc?id=${IDs[$index]}&export=download" "${TITLEs[$index]}"
+        IDs[$index]=; TITLEs[$index]=;
+        ;;
+      *'/drive.google.com/folderview?id\u003d'${IDs[$index]}*) # Folder; will be downloaded after the files
+        ;;
+      *) # Someting else! ### Remove it form the list
+        IDs[$index]=; TITLEs[$index]=;
         ;;
       esac
-      
-      TITLE=${FILE_D%%</div*}
-      title_escape
-      
-      chex # Choose and Exclude
-      if [ ! -d "$TITLE" ]
-      then
-        mkdir -p "$TITLE"
-      fi
-      
-      cd "$TITLE"
+    done
+    
+    unset FILE_0
+    
+    # Then, Folders
+    for index in ${!IDs[@]}
+    do
+      [ -z "${IDs[$index]}" ] && continue
+      [ ! -d "${TITLEs[$index]}" ] && mkdir -p "${TITLEs[$index]}" ; cd "${TITLEs[$index]}"
       if [ "$_MODE_" != "1" ] # not quiet
       then
-        output Now in "$NOWPATH$TITLE/"
-        NOWPATH="$NOWPATH$TITLE/" ${_SCRIPT_} https://drive.google.com/folderview?id=$ID
+        outbold Now in "$NOWPATH${TITLEs[$index]}/"
+        NOWPATH="$NOWPATH${TITLEs[$index]}/" ${_SCRIPT_} https://drive.google.com/folderview?id=${IDs[$index]}
       else # quiet
-        ${_SCRIPT_} https://drive.google.com/folderview?id=$ID
+        ${_SCRIPT_} https://drive.google.com/folderview?id=${IDs[$index]}
       fi
       cd ..
-      
     done
-    unset FILE_D
-    ;;
+    unset IDs TITLEs
   esac
 done
-
 ## END MAIN ()
 
 
@@ -381,7 +552,7 @@ if [ "$_CONFIRM_" == '1' ]
 then
   grep -lr '/uc?export=download' | while read a
   do
-    output Confirming "$a"
+    outbold Confirming "$a"
     URL=$(grep '/uc?export=download' "$a" | sed 's|.*uc?export=download|uc?export=download|' | sed 's|\".*||')
     perl "${_SCRIPT_%/*}/gdown.pl" 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$a"
   done
@@ -391,7 +562,7 @@ if [ ${#_CONFIRM_FILE_[@]} -ne 0 ]
 then
   for a in "${_CONFIRM_FILE_[@]}"
   do
-    output Confirming "$a"
+    outbold Confirming "$a"
     URL=$(grep '/uc?export=download' "$a" | sed 's|.*uc?export=download|uc?export=download|' | sed 's|\".*||')
     perl "${_SCRIPT_%/*}/gdown.pl" 'https://drive.google.com/'"${URL//'&amp;'/'&'}" "$a"
   done
