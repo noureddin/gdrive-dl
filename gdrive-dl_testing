@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-_VERSION_='2015.12.14_testing' # based on 2015.12.14_unstable
+_VERSION_='2016.02.23_testing' # based on 2016.02.23_unstable
 _BRANCH_='testing' # used for update.
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
@@ -468,7 +468,7 @@ do
     if [ "$_TRASH_" == "1" ]
     then
       ids=$(wc -l ".$idlist"); ids=${ids%% *};
-      if [ $ids -gt ${#OID[@]} ]
+      if [ $ids -gt ${#OIDs[@]} ]
       then
         cat ".$idlist" | while read x
         do
