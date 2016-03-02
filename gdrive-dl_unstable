@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-_VERSION_='2016.02.23_unstable'
+_VERSION_='2016.03.02_unstable'
 _BRANCH_='unstable' # used for update.
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
@@ -467,29 +467,29 @@ do
     # Trashing the no-longer-online files and folders before downloading.
     if [ "$_TRASH_" == "1" ]
     then
-      ids=$(wc -l ".$idlist"); ids=${ids%% *};
-      if [ $ids -gt ${#OIDs[@]} ]
-      then
-        cat ".$idlist" | while read x
-        do
-          case "${OIDs[*]}" in
-          *"${x%% *}"*) continue;;
-          *)
-            trash "${x#* }"
-            sed -i "/^${x%% *} .*/d" ".$idlist"
-            ;;
-          esac
-        done
+        ids=$(wc -l ".$idlist"); ids=${ids%% *};
+        if [ $ids -gt ${#OIDs[@]} ]
+        then
+          cat ".$idlist" | while read x
+          do
+            case "${OIDs[*]}" in
+            *"${x%% *}"*) continue;;
+            *)
+              trash "${x#* }"
+              sed -i "/^${x%% *} .*/d" ".$idlist"
+              ;;
+            esac
+          done
+        fi
         for a in *  # http://mywiki.wooledge.org/BashPitfalls#for_i_in_.24.28ls_.2A.mp3.29
         do
           [ "$a" == '*' ] && break
           a="${a//'['/'\['}"
           a="${a//']'/'\]'}"
-          grep "^[a-zA-Z0-9_]* $a$" ".$idlist" &>/dev/null
+          grep "^[-a-zA-Z0-9_]* $a$" ".$idlist" &>/dev/null
           [ $? -eq 0 ] && continue || [ $? -eq 1 ] && trash "$a"
           # if found; then  ...   else if not found; then ...
-        done
-      fi
+        done          
     fi
     
     # Files First !
