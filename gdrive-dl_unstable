@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-_VERSION_='2016.03.02_unstable'
+_VERSION_='2016.03.02-1_unstable'
 _BRANCH_='unstable' # used for update.
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
@@ -484,9 +484,9 @@ do
         for a in *  # http://mywiki.wooledge.org/BashPitfalls#for_i_in_.24.28ls_.2A.mp3.29
         do
           [ "$a" == '*' ] && break
-          a="${a//'['/'\['}"
-          a="${a//']'/'\]'}"
-          grep "^[-a-zA-Z0-9_]* $a$" ".$idlist" &>/dev/null
+          b="${a//'['/'\['}"
+          b="${b//']'/'\]'}"
+          grep "^[-a-zA-Z0-9_]* $b$" ".$idlist" &>/dev/null
           [ $? -eq 0 ] && continue || [ $? -eq 1 ] && trash "$a"
           # if found; then  ...   else if not found; then ...
         done          
