@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-_VERSION_='2016.03.02-1_unstable'
+_VERSION_='2016.03.08_unstable'
 _BRANCH_='unstable' # used for update.
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
@@ -403,7 +403,7 @@ do
     TITLE=${TITLE#*<title>}; TITLE=${TITLE%% - Google Drive</title>*}
     TITLE=$(title_escape "$TITLE")
     ID=$(echo ${i//*0B/0B} | sed 's|/.*||') # TODO: Google Doc
-    download "$ID" "$TITLE"
+    download "https://docs.google.com/uc?id=$ID&export=download" "$TITLE"
     ;;
   *folder*)
     FILE_0=$(wget -q "$i" -O -) # will NOT be modified
