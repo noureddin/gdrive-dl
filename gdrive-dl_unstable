@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-_VERSION_='2016.03.08_unstable'
+_VERSION_='2016.04.01_unstable'
 _BRANCH_='unstable' # used for update.
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
@@ -431,6 +431,14 @@ do
       
       TITLE=${FILE%%</div*}
       TITLE=$(title_escape "$TITLE")
+      
+      # Before we continue, we need to make sure that no file or folder share the same name (TITLE)
+      while for i in "${OTITLEs[@]}";do echo $i;done | grep -q ^"$TITLE"$ # if $TITLE is in $OTITLEs
+      do
+        [ "${ID:0:1}" == '0' ] && # not Google Doc
+          TITLE="${TITLE%%.*}+.${TITLE##*.}" ||
+          TITLE="$TITLE+"
+      done
       
       OIDs=("${OIDs[@]}" "$ID")
       [ "${ID:0:1}" == '0' ] && # not Google Doc
