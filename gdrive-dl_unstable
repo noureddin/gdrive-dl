@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-_VERSION_='2016.04.01_unstable'
+_VERSION_='2016.04.03_unstable'
 _BRANCH_='unstable' # used for update.
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
@@ -115,7 +115,6 @@ title_reverse()
   t="${t//\'/'&#39;'}"
   t="${t//\"/'&quot;'}"
   t="${t//'['/'\['}"  # for grep
-  t="${t//']'/'\]'}"  # for grep
   t="${t//'-'/'[-/:]'}"
   t="${t%.part}"
   t="${t%.pdf}\(.pdf\)\?" # we add an additional ".pdf" to Google Docs
@@ -134,7 +133,7 @@ chex() # Choose and Exclude
   if [ ${#_CHOOSE_[@]} -ne 0 ]
   # the user used CHOOSE
   then
-    if ! for i in "${_CHOOSE_[@]}";do echo $i;done | grep -q ^"$1"$
+    if ! for i in "${_CHOOSE_[@]}";do echo $i;done | grep -qxF "$1"
     # $TITLE($1) is NOT in $_CHOOSE_
     then
       continue
@@ -144,7 +143,7 @@ chex() # Choose and Exclude
   if [ ${#_EXCLUDE_[@]} -ne 0 ]
   # the user used EXCLUDE
   then
-    if for i in "${_EXCLUDE_[@]}";do echo $i;done | grep -q ^"$1"$
+    if for i in "${_EXCLUDE_[@]}";do echo $i;done | grep -qxF "$1"
     # $TITLE($1) is in $_EXCLUDE_
     then 
       continue
@@ -433,11 +432,16 @@ do
       TITLE=$(title_escape "$TITLE")
       
       # Before we continue, we need to make sure that no file or folder share the same name (TITLE)
-      while for i in "${OTITLEs[@]}";do echo $i;done | grep -q ^"$TITLE"$ # if $TITLE is in $OTITLEs
+      while for i in "${OTITLEs[@]}";do echo $i;done | grep -qxF "$TITLE" # if $TITLE is in $OTITLEs
       do
         [ "${ID:0:1}" == '0' ] && # not Google Doc
           TITLE="${TITLE%%.*}+.${TITLE##*.}" ||
           TITLE="$TITLE+"
+      done
+      # Special check for Google docs, as we append a ".pdf"
+      [ "${ID:0:1}" != '0' ] && while for i in "${OTITLEs[@]}";do echo $i;done | grep -qxF "$TITLE.pdf" # if $TITLE is in $OTITLEs
+      do
+        TITLE="$TITLE+"
       done
       
       OIDs=("${OIDs[@]}" "$ID")
