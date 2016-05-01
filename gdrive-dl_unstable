@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-_VERSION_='2016.04.03_unstable'
+_VERSION_='2016.05.01_unstable'
 _BRANCH_='unstable' # used for update.
 # Google Drive Public Folder Mass Downloader
 # by NoUrEdDiN : noureddin95@gmail.com
@@ -104,6 +104,8 @@ title_escape()
   t="${t//':'/'-'}" # replace : with -
   t="${t//'&#39;'/\'}" # replace &#39; with '
   t="${t//'&quot;'/\"}" # replace &quot; with "
+  t="${t//'&gt;'/'-'}"
+  t="${t//'&lt;'/'-'}"
   t="$(echo "$t" | sed 's/^[ \t]*//;s/[ \t]*$//')" # trim leading & trailing spaces - if found
   echo "$t"
 }
@@ -477,7 +479,7 @@ do
     done
     
     # Trashing the no-longer-online files and folders before downloading.
-    if [ "$_TRASH_" == "1" ]
+    if [ "$_TRASH_" == "1" ] && [ ${#OIDs[@]} -ne 0 ] # don't remove all the contents of a folder; it's usually a bug
     then
         ids=$(wc -l ".$idlist"); ids=${ids%% *};
         if [ $ids -gt ${#OIDs[@]} ]
@@ -501,7 +503,7 @@ do
           grep "^[-a-zA-Z0-9_]* $b$" ".$idlist" &>/dev/null
           [ $? -eq 0 ] && continue || [ $? -eq 1 ] && trash "$a"
           # if found; then  ...   else if not found; then ...
-        done          
+        done
     fi
     
     # Files First !
