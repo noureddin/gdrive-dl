@@ -463,7 +463,7 @@ sub get_this # given url, downloads it
   my $url = $_[0];
   if ($url =~ m|/folder|) # Folder
   {
-     $url =~ /id=([^?&]+)/;
+     $url =~ /(0B[^?&]+)/;
      getroot($1);
   }
   else
