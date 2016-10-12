@@ -64,7 +64,7 @@ sub confirm {
                 $check=1;
                 last;
             }
-            if (/"downloadurl":"([^"]+)/) {
+            if (/"downloadUrl":"([^"]+)/) {
                 $url=$1;
                 $url=~s/\\u003d/=/g;
                 $url=~s/\\u0026/&/g;
