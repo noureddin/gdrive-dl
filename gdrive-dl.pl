@@ -3,10 +3,9 @@
 # by NoUrEdDiN : noureddin95@gmail.com
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 
-# updated 12th, Oct, 2016; 2016.10.12
+# updated 14th, Oct, 2016; 2016.10.14
 
 # TODO (in the next few releases):
-# - remove non-printable Unicode chars when getting the title from '<title>'.
 # - support updating gdrive-dl from itself (run `gdrive-dl update` to update the script itself).
 # - support updating files on the local drive, if the online files have been modified. (it requires getting/decoding the dates from the Drive page.)
 # - test gdrive-dl more.
@@ -124,8 +123,8 @@ HD
     {
       my $url = (/^[0-9]/) ? "https://drive.google.com/drive/folders/$_" : $_;
       my $F=`$wget -q '$url' -O - @wget_options`;
-      $F=~m#<title>([^<]+) - Google.*?</title>#; # TODO: make this a function
-      print "The contents of \"$1\"\n";
+      my $ftitle; html_title($F, $ftitle);
+      print "The contents of \"$ftitle\"\n";
       my $gd = $F=~m|\[\\x22[^0]|; # set $gd to 1 if there are Google Files (whose IDs are longer than the folders and regular files); TODO: check this check!
       printf "%-*s\t%s\n", ($gd==1)?44:28, 'ID', 'NAME';
       #printf "%-*s\t%s\n", ($gd==1)?44:28, $1, ($ARGV[0] eq 'list-nodups')?title_escape_readonly($2):title_list($2, ($3 =~ /vnd\.google-apps\.(.)/)? "\U$1" : '')
@@ -250,10 +249,7 @@ sub getroot
               ($type eq 'S')? "https://docs.google.com/spreadsheets/d/$id/preview?hl=en" : # Google Spreadsheets
                               next; # if undef, it is not a valid ID!
     $F = `$wget -q '$url' -O - @wget_options`;
-    $F=~m|<title>(.*?)</title>|; # TODO: make this a function
-    my $title = $1; 
-    $title=~s/ - Google[^<]*//;
-    title_escape($title);
+    my $title; html_title($F, $title); 
     download($type.$id, $title);
     return;
   }
@@ -261,10 +257,9 @@ sub getroot
   if (defined $autodetect_dirs)
   {
     $F = `$wget -q 'https://drive.google.com/drive/folders/$id' -O - @wget_options`;
-    $F=~m|<title>(.*?) - Google[^<]*</title>|; # TODO: make this a function
-    my $title = $1; title_escape($title);
+    my $title; html_title($F, $title);
     make_path($title); chdir($title);
-    outbold("Getting \"$title\" (".length($title).")"); # FIXME: debug
+    outbold("Getting \"$title\"");
   }
   my $push = 1; # `push = 1` means `no ids file` means `push to arrays and download from them` NOT `compare the old file with the new`
   my $ID = '.'.IDFILENAME.'_'.$id;
@@ -475,8 +470,7 @@ sub get_this # given url, downloads it
           ($url =~ m|/spreadsheets/|)? 'S'.$id : # Google Spreadsheet
                                        return; # seems to be not a valid url
     my $F = `$wget -q '$url' -O - @wget_options`;
-    $F=~m|<title>(.*?)( - Google Drive)?</title>|; # TODO: make this a function
-    my $title = $1; title_escape($title);
+    my $title; html_title($F, $title);
     download($id, $title);
   }
 }
@@ -495,6 +489,17 @@ sub trash
   }
   make_path($trashdir);
   move($_[0], $trashdir);
+}
+
+sub html_title
+# get the title from the <title> tag, and remove the non-printable unicode chars Google adds.
+# $_[0] is $F, the entire html source; $_[1] is $title, the variable the title will be put in.
+{
+  $_[0]=~m|<title>(.*?)( - Google[^<]*)?</title>|;
+  $_[1] = $1; title_escape($_[1]);
+  $_[1]=~s/^\x{e2}\x{80}\x{aa}//;$_[1]=~s/\x{e2}\x{80}\x{ac}\x{e2}\x{80}\x{8f}$//;
+  $_[1]=~s/^\x{e2}\x{80}\x{ab}//;$_[1]=~s/\x{e2}\x{80}\x{ac}\x{e2}\x{80}\x{8e}$//;
+  
 }
 
 sub title_escape # makes every suitable substitution
