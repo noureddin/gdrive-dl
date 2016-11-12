@@ -3,7 +3,7 @@
 # by NoUrEdDiN : noureddin95@gmail.com
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 
-# updated 14th, Oct, 2016; 2016.10.14
+# updated 12th, Nov, 2016; 2016.11.12
 
 # TODO (in the next few releases):
 # - support updating gdrive-dl from itself (run `gdrive-dl update` to update the script itself).
@@ -70,6 +70,9 @@ these commands as the first argument.
                              files in the current folder recursively.
   confirm-check               print a list of the big files in the current folder recursively
                              that are not yet confirmed and downloaded
+  confirm-ia                  interactive confirming; it prints all files that need confirm
+                             in the current folder, recursively, with the total file size,
+                             and you choose which files to confirm and download.
   list [ID]... [URL]...       print the contents of the folders given by theirs IDs or URLs
   list-nodups [ID]... [URL]...  like 'list' but without duplicate-checking
 
@@ -112,6 +115,51 @@ HD
   {
     my @c = get_confirm_all(1);
     print "$_\n" for (@c);
+    exit;
+  }
+  elsif ($ARGV[0] eq 'confirm-ia') # interactive
+  {
+    print "\e[1mInteractive Confirmation Mode\e[m (enter 'h' for help):\n";
+    while (1)
+    {
+      my @c = get_confirm_all(1);
+      if ($#c < 0) { print "No files need being confirmed.\n"; exit; }
+      
+      my @s = map { '('.get_size_confirm($_).')'} @c;
+      my $max_size = 0; $max_size = map { length($_)>$max_size?length($_):$max_size } @s; $max_size+=2;
+      
+cials:for my $i (0..$#c) { printf "\e[1m[%0*d] %*s\e[m %s\n", length($#c), $i+1, $max_size, $s[$i], $c[$i]; }
+      
+ciain:print "Choose: ";
+      my $in = <STDIN>; chomp $in;
+      if ($in eq 'h')
+      {
+        print <<"HD";
+  Interactive Confirmation Mode in gdrive-dl is used to interactively choose files to be confirmed
+and downloaded. In it you can see every file that needs confirming, in the current folder
+respectively, is listed and preceded by two bold numbers: its size (between parenthese '\e[1m()\e[m'),
+and its number (between brackets '\e[1m[]\e[m').
+To choose a file, enter its number followed by the '\e[1menter\e[m' key. You can enter several
+numbers separated by a space to get their respective files in the order you entered them.
+A small '\e[1mq\e[m' will quit the program. And a small '\e[1ml\e[m' will re-list the files again.
+A small '\e[1mh\e[m' will show this help.
+You can enter a '\e[1mq\e[m' with the numbers to quit after downloading the requested files.
+Any other letter alone will cause rechecking and relisting the list of the files, which
+happens anyway after confirming and downloading any file.
+
+HD
+        goto cials; # FIXME: goto?!
+      }
+      goto cials if ($in eq 'l');
+      @confirm = ();
+      while ($in=~/([0-9]+)/g)
+      {
+        if ($1-1 > $#s || $1 < 1) { print "$1: invalid choice!\n"; goto ciain; }
+        push(@confirm, $c[$1-1]) 
+      }
+      my_confirm();
+      exit if $in =~ 'q';
+    }
     exit;
   }
   elsif (($ARGV[0] eq 'list') or ($ARGV[0] eq 'list-nodups')) # TODO: see if both of them are really needed, and not only one
@@ -272,7 +320,7 @@ sub getroot
     }
     $push = 1 if (defined $force);
     unlink("${ID}_");
-    open (IDFILE, ">> ${ID}_") || exit_with_error("Problem opening the IDs file.\n"); # using a temp file is to not corrupt the file if gdrive-dl is interrupted
+    open (IDFILE, ">> ${ID}_") or exit_with_error("Problem opening the IDs file.\n"); # using a temp file is to not corrupt the file if gdrive-dl is interrupted
     wgetfolder($id, '', $push, $F); undef $F;
     print "\e[1K\r";
     close(IDFILE); move("${ID}_", $ID); # when getting all the IDs is done
@@ -440,7 +488,7 @@ sub download # $_[0] is $id prefixed with the typemarker, $_[1] is $title
     {
       move($title.'._part', "$title");
       if (((stat($title))[7] < 4000) and (system('grep', '-q', '/uc?export=download', $title) == 0)) # TODO: PURIFY
-      { outconfirm(); }
+      { outconfirm(get_size_confirm($title)); }
       else
       { outdone(get_filesize_str($title)); }
     }
@@ -635,6 +683,17 @@ sub get_confirm_all
   }
   my %c = map {$_ => 1} @c;
   return sort keys %c;
+}
+
+sub get_size_confirm
+# given an comfirm-required HTML file path and gives the size of the to-be-downloaded file
+{ # src: http://www.perlmonks.org/?node_id=597051
+  open my $fh, "<", $_[0] or return 'N/A';
+  while (my $l = <$fh>)
+  {
+    if ($l=~/ \(([0-9A-Z.]+)\)<\/span>/)
+    { close $fh; return $1; }
+  }
 }
 
 sub my_confirm
@@ -911,7 +970,7 @@ sub outfailed # output allcaps "failed" in bold red
 { print "\e[1;31mFAILED\e[0m \e[1m*\e[0m\n"; }
 
 sub outconfirm # output all caps "confirmation required" in bold red
-{ print "\e[1;31mCONFIRMATION REQUIRED\e[0m \e[1m*\e[0m\n"; }
+{ print "\e[1;31mCONFIRMATION REQUIRED ($_[0])\e[0m \e[1m*\e[0m\n"; }
 
 sub outwarn # output warnings to stderr, bold red for $_[0], then bold for $_[1]
 { print STDERR "\e[1;31m$_[0]\e[0m \e[1m$_[1]\e[0m\n"; }
