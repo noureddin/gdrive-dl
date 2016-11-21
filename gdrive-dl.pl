@@ -3,7 +3,7 @@
 # by NoUrEdDiN : noureddin95@gmail.com
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 
-# updated 12th, Nov, 2016; 2016.11.12
+# updated 21th, Nov, 2016; 2016.11.21
 
 # TODO (in the next few releases):
 # - support updating gdrive-dl from itself (run `gdrive-dl update` to update the script itself).
@@ -34,6 +34,7 @@ my $choose; # 1 for choose, 0 for exclude, undef for none
 my $chexwarnflag; # rised if both choose and exclude are used
 my $force;
 my $no_scan;
+my $trash;
 my %duplicates; # for title_duplicated()
 my $mso; # if defined, download Google files as MSOffice not PDF
 my $odf; # if defined, download Google files as OpenDocument not PDF
@@ -82,6 +83,7 @@ Options:
   -f,  --force                 download (and complete) any non-downloaded files
   -ns, --no-scan               use the current IDs files and don't scan the online drive
                                use --no-scan with --force to complete downloading
+  -t,  --trash                 enable trashing for old files (NOT recommended now)
   -c,  --confirm[=FILE]        like 'confirm' command, but after downloading the drive
   -cc, --confirm-check         like 'confirm-check' command, but after downloading the drive
   -ad, --autodetect-dirs       download into a folder named the same as the given drive
@@ -231,6 +233,10 @@ foreach (@ARGV)
   {
     $no_scan = 1; # mostly for debugging, or completing downloading
   }
+  elsif (/^--trash|-t$/)
+  {
+    $trash = 1;
+  }
   elsif (/^--confirm|-c$/)
   {
     $confirm_all = 1;
@@ -340,13 +346,14 @@ sub getroot
     my %oold = getidtitle($old);
     my %onew = getidtitle($new);
     # https://stackoverflow.com/a/4891975
+    # we need to know the deleted files in order to know the moved/renamed files
     my %delids = map { $_ => 1 } grep {not $onew{$_}} keys %oold; # ids uniq to IDs_old -- to delete
     my %getids = (defined $force) # with $no_scan
                  ? %onew
                  : map { $_ => 1 } grep {not $oold{$_}} keys %onew; # ids uniq to IDs (new) -- to get
     my @delids = getids_sort($old, \%delids);
     my @getids = getids_sort($new, \%getids); undef %getids;
-    foreach (@delids) { next unless (chex($oold{$_})); trash($oold{$_}); }
+    if (defined $trash) { foreach (@delids) { next unless (chex($oold{$_})); trash($oold{$_}); } }
     # we want to delete, move/rename, then download. in this particular order. but we need the to-be-downloaded files id list in the second step (moved files), so we need to compute it first. but we won't download anything until the end of this if-body.
     
     # Moved or Renamed files/folders
