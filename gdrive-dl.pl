@@ -3,7 +3,7 @@
 # by NoUrEdDiN : noureddin95@gmail.com
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 
-# updated 21th, Nov, 2016; 2016.11.21
+# updated 27th, Feb, 2017; 2017.02.27
 
 # TODO (in the next few releases):
 # - support updating gdrive-dl from itself (run `gdrive-dl update` to update the script itself).
@@ -18,7 +18,12 @@ use strict; use warnings;
 use File::Copy qw(move);
 use File::Path qw(make_path remove_tree);
 use List::MoreUtils qw(uniq);
-use Tie::RegexpHash; # for chex; https://metacpan.org/pod/Tie::RegexpHash
+my $chex;
+if (grep /-ch|-ex/, @ARGV)
+{
+  eval "use Tie::RegexpHash"; # for chex; https://metacpan.org/pod/Tie::RegexpHash
+  $chex = Tie::RegexpHash->new();
+}
 use HTTP::Tiny;
 
 use IO::Handle; STDOUT->autoflush(1); # to print on the same line; http://www.perlmonks.org/?node_id=699555
@@ -29,15 +34,16 @@ my @givenids; # ids given as arguments
 my @givenurls; # urls given as arguments
 my @dlids; # ids of files to download
 my @dltitles; # titles of files to download (in the same order as @dlids)
-my $chex = Tie::RegexpHash->new();
-my $choose; # 1 for choose, 0 for exclude, undef for none
-my $chexwarnflag; # rised if both choose and exclude are used
 my $force;
 my $no_scan;
 my $trash;
 my %duplicates; # for title_duplicated()
+my $choose; # 1 for choose, 0 for exclude, undef for none
+my $chexwarnflag; # rised if both choose and exclude are used
 my $mso; # if defined, download Google files as MSOffice not PDF
 my $odf; # if defined, download Google files as OpenDocument not PDF
+my $txt; # if defined, download Google files as Plain Text; this downloads spreadsheets as CSV unless $tsv is defined
+my $tsv; # if defined AND $txt is defined, download Google spreadsheets as tab-separated values, not comma-separated values
 my $gfilewarnflag; # rised if both $mso and $od are defined
 my $autodetect_dirs;
 my $confirm_all;
@@ -89,6 +95,8 @@ Options:
   -ad, --autodetect-dirs       download into a folder named the same as the given drive
   -mso,--microsoft-office      download Google files as docx, pptx, and xlsx, not pdf
   -odf,--opendocument-format   download Google files as odt, odp, and ods, not pdf
+  -txt                         download Google files as txt, txt, and csv, not pdf
+  -tsv                         with '-txt', download Google spreadsheets as tsv, not csv
   *                            anything else is passed to Wget as an option
 
 Notes:
@@ -257,13 +265,23 @@ foreach (@ARGV)
   }
   elsif (/^--microsoft-office|-mso$/)
   {
-    if (defined $odf) { $gfilewarnflag = 1; next; }
+    if (defined $odf or defined $txt) { $gfilewarnflag = 1; next; }
     $mso = 1;
   }
   elsif (/^--opendocument-format|-odf$/)
   {
-    if (defined $mso) { $gfilewarnflag = 1; next; }
+    if (defined $mso or defined $txt) { $gfilewarnflag = 1; next; }
     $odf = 1;
+  }
+  elsif (/^-txt$/)
+  {
+    if (defined $mso or defined $odf) { $gfilewarnflag = 1; next; }
+    $txt = 1;
+  }
+  elsif (/^-tsv$/)
+  {
+    #if (not defined $txt) { $gfilewarnflag = 1; next; }
+    $tsv = 1;
   }
   else # assume the rest are Wget options; TODO: check the options before passing!
   {
@@ -275,7 +293,13 @@ if (defined $chexwarnflag)
 { outwarn('WARNING:', 'Choose and Exclude are used at the same time. Using the first, '.(($choose==1)?'Choose.':'Exclude.')); }
 
 if (defined $gfilewarnflag)
-{ outwarn('WARNING:', 'You have chosen both MSO and ODF; you can\'t. Using the first, '.((defined $mso)?'MSO.':'ODF.')); }
+{
+  my $use = (defined $mso)?'MSO.':(defined $odf)?'ODF.':'TXT.';
+  outwarn('WARNING:', 'You have chosen two or more of MSO, ODF, and TXT; you can\'t. Using the first, '.$use);
+}
+
+if (defined $tsv and not defined $txt)
+{ outwarn('WARNING:', "'-txt' is not used but '-tsv' is used. It's ignored."); }
 
 # if no IDs are given, look for this folder ID
 if (scalar @givenids == 0 and scalar @givenurls == 0) { @givenids = get_ids_dir('.') or exit_with_error("No IDs given or found!\n"); }
@@ -468,17 +492,17 @@ sub download # $_[0] is $id prefixed with the typemarker, $_[1] is $title
     my $format; my $type; $id = substr($id, 1);
     if    ($_[0] =~ m/^D.*/) # Google Document
     {
-      $format = (defined $mso)? 'docx' : (defined $odf)? 'odt' : 'pdf';
+      $format = (defined $mso)? 'docx' : (defined $odf)? 'odt' : (defined $txt)? 'txt' : 'pdf';
       $url = "https://docs.google.com/document/export?format=$format&id=$id";
     }
     elsif ($_[0] =~ m/^S.*/) # Google Spreadsheets
     {
-      $format = (defined $mso)? 'xlsx' : (defined $odf)? 'ods' : 'pdf';
+      $format = (defined $mso)? 'xlsx' : (defined $odf)? 'ods' : (defined $txt)? ((defined $tsv)? 'tsv':'csv') : 'pdf';
       $url = "https://docs.google.com/spreadsheets/export?format=$format&id=$id";
     }
     elsif ($_[0] =~ m/^P.*/) # Google Presentation
     {
-      $format = (defined $mso)? 'pptx' : (defined $odf)? 'odp' : 'pdf';
+      $format = (defined $mso)? 'pptx' : (defined $odf)? 'odp' : (defined $txt)? 'txt' : 'pdf';
       $url = "https://docs.google.com/presentation/d/$id/export/$format";
     }
     else # Folder; should not happen anyway
@@ -519,11 +543,13 @@ sub get_this # given url, downloads it
   else
   {
     my ($id) = $url=~m|/([0-9][-_0-9a-zA-Z]+)/|;
-    $id = ($url =~ m|/file/|)?         $id     : # Regular File
+    $id = ($url =~ m|/file/|)?             $id : # Regular File
           ($url =~ m|/document/|)?     'D'.$id : # Google Document
           ($url =~ m|/presentation/|)? 'P'.$id : # Google Presentation
           ($url =~ m|/spreadsheets/|)? 'S'.$id : # Google Spreadsheet
-                                       return; # seems to be not a valid url
+                                       return  ; # seems to be not a valid url
+    # the 'hl=en' is to ensure the title contains 'Google Docs' or similar in English so its easier to be removed
+    $url .= ($url =~ m/\?/)? '&hl=en' : '?hl=en';
     my $F = `$wget -q '$url' -O - @wget_options`;
     my $title; html_title($F, $title);
     download($id, $title);
@@ -618,19 +644,30 @@ sub title_duplicated # add a number to avoid having files/folders with the same 
   }
   else # if folder or Google file
   {
-    my $ext = ($marker eq 'F')?   ''      :              # folder--no extension
-                                                         # Google file
-              (not defined $mso and not defined $odf)?   #  PDF
-                                  '.pdf'  :
-              (defined $mso)?                            #  MSOffice
-                ($marker eq 'D')? '.docx' :              #   Google document
-                ($marker eq 'P')? '.pptx' :              #   Google presentation
-                ($marker eq 'S')? '.xlsx' :              #   Google spreadsheet
-                                  ''      :              #  OpenDocument
-                ($marker eq 'D')? '.odt'  :              #   Google document
-                ($marker eq 'P')? '.odp'  :              #   Google presentation
-                ($marker eq 'S')? '.ods'  :              #   Google spreadsheet
-                                  ''      ;
+    my $ext = ($marker eq 'F')?    ''      :      # folder--no extension
+                                                  # Google file
+              (    not defined $mso
+               and not defined $odf
+               and not defined $txt)?             #  PDF
+                                   '.pdf'  :
+              (defined $mso)?(                    #  MSOffice
+                ($marker eq 'D')?  '.docx' :      #   Google document
+                ($marker eq 'P')?  '.pptx' :      #   Google presentation
+                ($marker eq 'S')?  '.xlsx' :      #   Google spreadsheet
+                                   '')     :     
+              (defined $odf)?(                   #  OpenDocument
+                ($marker eq 'D')?  '.odt'  :      #   Google document
+                ($marker eq 'P')?  '.odp'  :      #   Google presentation
+                ($marker eq 'S')?  '.ods'  :      #   Google spreadsheet
+                                   '')     :
+                                                 #  PlainText
+              (   $marker eq 'D'                 #   Google document
+               or $marker eq 'P')? '.txt' :      #   Google presentation
+              (   $marker eq 'S')?               #   Google spreadsheet
+                (defined $tsv)?    '.tsv' :      #    Tab-separated values
+                                   '.csv' :      #    Comma-separated values
+                                   ''     ;
+    # DISCLAIMER: The block of code above is written by a graphic designer, not a programmer. :P
     do_check_duplicates($parent.$title.$ext, $title);
   }
   $_[1] = $title;
@@ -695,7 +732,7 @@ sub get_confirm_all
 sub get_size_confirm
 # given an comfirm-required HTML file path and gives the size of the to-be-downloaded file
 { # src: http://www.perlmonks.org/?node_id=597051
-  open my $fh, "<", $_[0] or return 'N/A';
+  open my $fh, "<", $_[0] or return '0';
   while (my $l = <$fh>)
   {
     if ($l=~/ \(([0-9A-Z.]+)\)<\/span>/)
@@ -773,7 +810,7 @@ sub confirm_one # if the 2nd agrument is given (defined), it means don't print "
   my $filename;
   my $tempfile;
   my $downloadfile;
-  my $cookiefile;
+  #my $cookiefile;
   my $urlfile; # for gdrive-dl
   
   sub confirm
@@ -784,21 +821,24 @@ sub confirm_one # if the 2nd agrument is given (defined), it means don't print "
     if ($filename=~m|^(.*)/([^/]+)$|) # if the file is under a folder
     {
       $tempfile = "$1/.$2.html";
-      $cookiefile = "$1/.$2_cookie.txt";
+      #$cookiefile = "$1/.$2_cookie.txt";
       $urlfile = "$1/.$2_URL";
     }
     else
     {
       $tempfile = ".${filename}.html";
-      $cookiefile = ".${filename}_cookie.txt";
+      #$cookiefile = ".${filename}_cookie.txt";
       $urlfile = ".${filename}_URL";
     }
 
     my $confirm;
     my $check;
     my $docs_flag;
-
-    confirm_execute_command();
+    
+    if (size_int(get_size_confirm($filename)) >= 26214400) # 25MB: Google's filesize limit on checking files for viruses
+    { confirm_execute_command(); } # if the file is big
+    else
+    { confirm_execute_command_final(); return 1; } # if it's small, only one execution should do the job
 
     while (-s $tempfile < 100000) # only if the file isn't the download yet
     {
@@ -834,7 +874,7 @@ sub confirm_one # if the 2nd agrument is given (defined), it means don't print "
       exit_with_error("Couldn't confirm and download \"$filename\" :-(\n") if ($check == 0);
       $url=~s/confirm=([^;&]+)/confirm=$confirm/ if ($confirm ne '');
       
-      # the url redirects to docs.google.com/..., then redirects to another docs.google.com/... which is the final url
+      # if a big file, the url redirects to docs.google.com/..., then redirects to another docs.google.com/... which is the final url
       if ($url=~/docs\.google\.com/)
       {
         if (defined $docs_flag)
@@ -848,14 +888,17 @@ sub confirm_one # if the 2nd agrument is given (defined), it means don't print "
   }
 
   sub confirm_execute_command
-  { system($wget, '-q', '--load-cookie', $cookiefile, '--save-cookie', $cookiefile, $url, '-O', $tempfile, @wget_options); } # FIXME: two cookie files
+  { system($wget, '-q', $url, '-O', $tempfile, @wget_options); }
+  #{ system($wget, '-q', '--load-cookie', $cookiefile, '--save-cookie', $cookiefile, $url, '-O', $tempfile, @wget_options); } # FIXME: two cookie files
 
   sub confirm_execute_command_final
   {
-    if (system($wget, '-c', '--load-cookie', $cookiefile, '--save-cookie', $cookiefile, $url, '-O', $downloadfile, @wget_options,
+    #if (system($wget, '-c', '--load-cookie', $cookiefile, '--save-cookie', $cookiefile, $url, '-O', $downloadfile, @wget_options,
+    if (system($wget, '-c', $url, '-O', $downloadfile, @wget_options,
                ($wget_version_1_16)?('-q', '--show-progress'):()) == 0) # if downloading finished successfully
     {
-      unlink($tempfile, $cookiefile, $urlfile);
+      #unlink($tempfile, $cookiefile, $urlfile);
+      unlink($tempfile, $urlfile);
       move($downloadfile, $filename);
     }
     else
@@ -909,6 +952,24 @@ sub get_filesize_str
   { return sprintf("%.1fK", $size / 1024); }
   else                        #   bytes
   { return "${size}B"; }
+}
+
+sub size_int
+{
+  # based on get_filesize_str's code
+  my $str = shift;
+  my ($int, $ltr) = $str=~/^([.0-9]+)([^0-9])?$/;
+
+  if (defined $ltr)
+  {
+    if    ($ltr eq 'B') { return $int; }                # may not happen, as 'B' is usually omitted
+    elsif ($ltr eq 'K') { return $int*1024; }
+    elsif ($ltr eq 'M') { return $int*1048576; }        # 1024^2
+    elsif ($ltr eq 'G') { return $int*1073741824; }     # 1024^3
+    elsif ($ltr eq 'T') { return $int*1099511627776; }  # 1024^4
+    else                { return $int; }                # should not happen anyway
+  }
+  else                  { return $int; }
 }
 
 sub get_ids_dir
