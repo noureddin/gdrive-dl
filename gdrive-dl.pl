@@ -1,9 +1,9 @@
 #!/usr/bin/env perl
 # Google Drive Public Folder Mass Downloader (gdrive-dl), in perl
-# by NoUrEdDiN : noureddin95@gmail.com
+# by NoUrEdDiN : noureddin@protonmail.com or noureddin95@gmail.com
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 
-# updated 27th, Feb, 2017; 2017.02.27
+# updated 1st, Mar, 2017; 2017.03.01
 
 # TODO (in the next few releases):
 # - support updating gdrive-dl from itself (run `gdrive-dl update` to update the script itself).
@@ -44,7 +44,10 @@ my $mso; # if defined, download Google files as MSOffice not PDF
 my $odf; # if defined, download Google files as OpenDocument not PDF
 my $txt; # if defined, download Google files as Plain Text; this downloads spreadsheets as CSV unless $tsv is defined
 my $tsv; # if defined AND $txt is defined, download Google spreadsheets as tab-separated values, not comma-separated values
-my $gfilewarnflag; # rised if both $mso and $od are defined
+# for Google drawings, PDF is the default format; $mso or $odf downloads them as PNG; and $txt downloads them as SVG
+# the following flags, with the corresponding switches, fine-tune them away from other "office" formats
+#my $png; my $svg; # to be implemented sometime soon
+my $gfilewarnflag; # rised if both $mso and $odf are defined
 my $autodetect_dirs;
 my $confirm_all;
 my $gdl_cookiefile = '/tmp/gdrive-dl-'.`date +%s`; $gdl_cookiefile=~s/\n//; # TODO: PURIFY; use only Perl functions
@@ -93,9 +96,9 @@ Options:
   -c,  --confirm[=FILE]        like 'confirm' command, but after downloading the drive
   -cc, --confirm-check         like 'confirm-check' command, but after downloading the drive
   -ad, --autodetect-dirs       download into a folder named the same as the given drive
-  -mso,--microsoft-office      download Google files as docx, pptx, and xlsx, not pdf
-  -odf,--opendocument-format   download Google files as odt, odp, and ods, not pdf
-  -txt                         download Google files as txt, txt, and csv, not pdf
+  -mso,--microsoft-office      download Google files as docx, pptx, xlsx, and png, not pdf
+  -odf,--opendocument-format   download Google files as odt, odp, ods, and png, not pdf
+  -txt                         download Google files as txt, txt, csv, and svg, not pdf
   -tsv                         with '-txt', download Google spreadsheets as tsv, not csv
   *                            anything else is passed to Wget as an option
 
@@ -325,6 +328,7 @@ sub getroot
               ($type eq 'D')? "https://docs.google.com/document/d/$id/preview?hl=en" :     # Google Document
               ($type eq 'P')? "https://docs.google.com/presentation/d/$id/preview?hl=en" : # Google Presentation
               ($type eq 'S')? "https://docs.google.com/spreadsheets/d/$id/preview?hl=en" : # Google Spreadsheets
+              ($type eq 'G')? "https://docs.google.com/drawings/d/$id/preview?hl=en" :     # Google Drawings (Graphics)
                               next; # if undef, it is not a valid ID!
     $F = `$wget -q '$url' -O - @wget_options`;
     my $title; html_title($F, $title); 
@@ -463,6 +467,8 @@ sub wgetfolder # $_[0] = the folder id, $_[1] = current path, $_[2] = push?, $_[
     { $typemarker = 'P'; }
     elsif ($typemarker eq 'vnd.google-apps.spreadsheet')
     { $typemarker = 'S'; }
+    elsif ($typemarker eq 'vnd.google-apps.drawing')
+    { $typemarker = 'G'; }
     else
     { $typemarker = '';  }
 
@@ -504,6 +510,11 @@ sub download # $_[0] is $id prefixed with the typemarker, $_[1] is $title
     {
       $format = (defined $mso)? 'pptx' : (defined $odf)? 'odp' : (defined $txt)? 'txt' : 'pdf';
       $url = "https://docs.google.com/presentation/d/$id/export/$format";
+    }
+    elsif ($_[0] =~ m/^G.*/) # Google Drawings (Graphics)
+    {
+      $format = (defined $mso)? 'png' : (defined $odf)? 'png' : (defined $txt)? 'svg' : 'pdf';
+      $url = "https://docs.google.com/drawings/d/$id/export/$format";
     }
     else # Folder; should not happen anyway
     { return; }
@@ -547,6 +558,7 @@ sub get_this # given url, downloads it
           ($url =~ m|/document/|)?     'D'.$id : # Google Document
           ($url =~ m|/presentation/|)? 'P'.$id : # Google Presentation
           ($url =~ m|/spreadsheets/|)? 'S'.$id : # Google Spreadsheet
+          ($url =~ m|/drawings/|)?     'G'.$id : # Google Drawings (Graphics)
                                        return  ; # seems to be not a valid url
     # the 'hl=en' is to ensure the title contains 'Google Docs' or similar in English so its easier to be removed
     $url .= ($url =~ m/\?/)? '&hl=en' : '?hl=en';
@@ -654,19 +666,22 @@ sub title_duplicated # add a number to avoid having files/folders with the same 
                 ($marker eq 'D')?  '.docx' :      #   Google document
                 ($marker eq 'P')?  '.pptx' :      #   Google presentation
                 ($marker eq 'S')?  '.xlsx' :      #   Google spreadsheet
+                ($marker eq 'G')?  '.png'  :      #   Google drawings (graphics)
                                    '')     :     
-              (defined $odf)?(                   #  OpenDocument
+              (defined $odf)?(                    #  OpenDocument
                 ($marker eq 'D')?  '.odt'  :      #   Google document
                 ($marker eq 'P')?  '.odp'  :      #   Google presentation
                 ($marker eq 'S')?  '.ods'  :      #   Google spreadsheet
+                ($marker eq 'G')?  '.png'  :      #   Google drawings (graphics)
                                    '')     :
-                                                 #  PlainText
-              (   $marker eq 'D'                 #   Google document
-               or $marker eq 'P')? '.txt' :      #   Google presentation
-              (   $marker eq 'S')?               #   Google spreadsheet
-                (defined $tsv)?    '.tsv' :      #    Tab-separated values
-                                   '.csv' :      #    Comma-separated values
-                                   ''     ;
+                                                  #  PlainText
+              (   $marker eq 'D'                  #   Google document
+               or $marker eq 'P')? '.txt'  :      #   Google presentation
+              (   $marker eq 'G')? '.png'  :      #   Google drawings (graphics)
+              (   $marker eq 'S')?                #   Google spreadsheet
+                (defined $tsv)?    '.tsv'  :      #    Tab-separated values
+                                   '.csv'  :      #    Comma-separated values
+                                   ''      ;
     # DISCLAIMER: The block of code above is written by a graphic designer, not a programmer. :P
     do_check_duplicates($parent.$title.$ext, $title);
   }
@@ -1002,13 +1017,14 @@ sub get_type # used with the IDs supplied by the user as arguments
   if ($id =~ /^0.*/) # it's a regular file or a folder
   {
     if    (check_online_url("https://drive.google.com/drive/folders/$id"))          { return 'F'; } # Folder
-    elsif (check_online_url("https://drive.google.com/file/d/$id/view"))            { return ''; }  # Regular File
+    elsif (check_online_url("https://drive.google.com/file/d/$id/view"))            { return '' ; }  # Regular File
   }
   else # it's a Google file
   {
     if    (check_online_url("https://docs.google.com/document/d/$id/preview"))      { return 'D'; } # Google Document
     elsif (check_online_url("https://docs.google.com/presentation/d/$id/preview"))  { return 'P'; } # Google Presentation
     elsif (check_online_url("https://docs.google.com/spreadsheets/d/$id/preview"))  { return 'S'; } # Google Spreadsheets
+    elsif (check_online_url("https://docs.google.com/drawings/d/$id/preview"))      { return 'G'; } # Google Drawings (Graphics)
   }
 }
 
