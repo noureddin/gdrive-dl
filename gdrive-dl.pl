@@ -3,7 +3,7 @@
 # by NoUrEdDiN : noureddin@protonmail.com or noureddin95@gmail.com
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 
-# updated 1st, Mar, 2017; 2017.03.01
+# updated 8th, Mar, 2017; 2017.03.08
 
 # TODO (in the next few releases):
 # - support updating gdrive-dl from itself (run `gdrive-dl update` to update the script itself).
@@ -559,7 +559,8 @@ sub get_this # given url, downloads it
           ($url =~ m|/presentation/|)? 'P'.$id : # Google Presentation
           ($url =~ m|/spreadsheets/|)? 'S'.$id : # Google Spreadsheet
           ($url =~ m|/drawings/|)?     'G'.$id : # Google Drawings (Graphics)
-                                       return  ; # seems to be not a valid url
+          ($url=~m|id=([^&/?]+)|)[0]; # some urls like https://drive.google.com/open?id=0BXXX
+    if ($id eq '') {return}           # seems to be not a valid url
     # the 'hl=en' is to ensure the title contains 'Google Docs' or similar in English so its easier to be removed
     $url .= ($url =~ m/\?/)? '&hl=en' : '?hl=en';
     my $F = `$wget -q '$url' -O - @wget_options`;
@@ -820,6 +821,7 @@ sub confirm_one # if the 2nd agrument is given (defined), it means don't print "
   #   - embeddability (can be a part of any Perl script, specifically gdrive-dl)
   # http://github.com/noureddin/gdrive-dl
   # To get it: https://github.com/noureddin/gdrive-dl/blob/b04158a2d967ac5dfdca54b62ca78087d5c92114/gdown.pl
+  # This gdrive-dl version of gdown v2.0 is adapted from the original v2.0 in the above link.
 
   my $url;
   my $filename;
