@@ -3,9 +3,9 @@
 # by NoUrEdDiN : noureddin@protonmail.com or noureddin95@gmail.com
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 
-# updated 8th, Mar, 2017; 2017.03.08
+# updated 16th, Mar, 2017; 2017.03.16
 
-# TODO (in the next few releases):
+# TODO (in the next few releases, hopefully):
 # - support updating gdrive-dl from itself (run `gdrive-dl update` to update the script itself).
 # - support updating files on the local drive, if the online files have been modified. (it requires getting/decoding the dates from the Drive page.)
 # - test gdrive-dl more.
@@ -34,7 +34,9 @@ my @givenids; # ids given as arguments
 my @givenurls; # urls given as arguments
 my @dlids; # ids of files to download
 my @dltitles; # titles of files to download (in the same order as @dlids)
-my $force;
+my @dldates; # dates of files to download (in the same order as @dlids)
+my %olddates; # id-date pairs from the old IDs file
+my $force = 1; # to allow updating files if modified
 my $no_scan;
 my $trash;
 my %duplicates; # for title_duplicated()
@@ -319,6 +321,7 @@ sub getroot
   @dlids = ();
   @dltitles = ();
   %duplicates = ();
+  %olddates = ();
   
   my $F; my $id = $_[0]; my $type = get_type($id);
   if ($type ne 'F') # if not a folder
@@ -350,12 +353,13 @@ sub getroot
     if ( -e $ID )
     { 
       move($ID, "${ID}_old");
+      %olddates = getiddate("${ID}_old");
       $push = 0; # if an old IDs file exists, we use it w/ the new file, not the arrays.
     }
     $push = 1 if (defined $force);
     unlink("${ID}_");
     open (IDFILE, ">> ${ID}_") or exit_with_error("Problem opening the IDs file.\n"); # using a temp file is to not corrupt the file if gdrive-dl is interrupted
-    wgetfolder($id, '', $push, $F); undef $F;
+    wgetfolder($id, 0, '', $push, $F); undef $F;
     print "\e[1K\r";
     close(IDFILE); move("${ID}_", $ID); # when getting all the IDs is done
   }
@@ -428,7 +432,7 @@ sub getroot
     foreach (@getids)
     {
       next unless (chex($oold{$_})); next if (/^F/); # we create a folder only if it has contents
-      download($_, $onew{$_});
+      download($_, $dldates[$_], $onew{$_});
     }
     #unlink($old); # DEBUG
   }
@@ -441,7 +445,7 @@ sub getroot
     for (0 .. $#dlids)
     {
       next unless (chex($dltitles[$_]));
-      download($dlids[$_], $dltitles[$_]);
+      download($dlids[$_], $dldates[$_], $dltitles[$_]);
     }
   }
   print("\e[1K\r");
@@ -449,16 +453,17 @@ sub getroot
   chdir('..') if (defined $autodetect_dirs);
 }
 
-sub wgetfolder # $_[0] = the folder id, $_[1] = current path, $_[2] = push?, $_[3] = $F
+sub wgetfolder # $_[0] = the folder id, $_[1] = date, $_[2] = current path, $_[3] = push?, $_[4] = $F
 {
-  my ($fid, $path, $push) = @_;
+  my ($fid, $date, $path, $push) = @_;
+  if (defined $olddates{'F'.$fid} and $date == $olddates{'F'.$fid}) {return;} # nothing to do
   print "\e[1K\rScanning $path";
   
   # First, getting IDs and Titles
-  my $F = (defined $autodetect_dirs and $path eq '') ? $_[3] : `$wget -q "https://drive.google.com/drive/folders/$fid" -O - @wget_options`;
-  while ($F=~m#\[\\x22([^\\]+)\\x22,\[\\x22$fid\\x22]\\n,\\x22(.*?)\\x22,\\x22[^\\]+\\/([^\\]+)\\x#g)
+  my $F = (defined $autodetect_dirs and $path eq '') ? $_[4] : `$wget -q "https://drive.google.com/drive/folders/$fid" -O - @wget_options`;
+  while ($F=~m#\[\\x22([^\\]+)\\x22,\[\\x22$fid\\x22]\\n,\\x22(.*?)\\x22,\\x22[^\\]+\\/([^\\]+)\\x.*?,[0-9]{13,},([0-9]{13,}),#g)
   {
-    my $id = $1; my $title = $2; title_escape($title); my $typemarker = $3;
+    my $id = $1; my $title = $2; title_escape($title); my $typemarker = $3; my $date = $4;
     if ($typemarker eq 'vnd.google-apps.folder')
     { $typemarker = 'F'; }
     elsif ($typemarker eq 'vnd.google-apps.document')
@@ -473,22 +478,38 @@ sub wgetfolder # $_[0] = the folder id, $_[1] = current path, $_[2] = push?, $_[
     { $typemarker = '';  }
 
     title_duplicated($path, $title, $typemarker);
-    if ($push) { push(@dlids, $typemarker.$id); push(@dltitles, $path.$title); }
-    printf IDFILE "%s\t%s", $typemarker.$id, $path.$title;
+    if ($push)
+    {
+        push(@dlids, $typemarker.$id);
+        push(@dltitles, $path.$title);
+        push(@dldates, $date);
+    }
+    printf IDFILE "%s\t%s\t%s", $typemarker.$id, $date, $path.$title;
     if ($typemarker eq 'F')
     {
       print IDFILE "/\n"; # add a trailing '/' only if a folder
-      wgetfolder($id, "$path$title/", $push);
+      wgetfolder($id, $date, "$path$title/", $push);
     }
     else
     { print IDFILE "\n"; }
   }
 }
 
-sub download # $_[0] is $id prefixed with the typemarker, $_[1] is $title
+sub download # $_[0] is $id prefixed with the typemarker, $_[2] is $date, $_[1] is $title
 {
   # http://www.labnol.org/internet/direct-links-for-google-drive/28356/
-  my ($id, $title) = @_; my $url;
+  my ($id, $date, $title) = @_; my $url;
+  
+  my $update; # just a flag
+  if (%olddates and $date != 0)
+  {
+    if ($date == $olddates{$id})
+    {
+       return; # nothing to do
+    } else {
+      $update = 1;
+    }
+  }
   if ($id =~ m/^0.*/) # Regular File
   {
     $url = "https://docs.google.com/uc?id=$id&export=download";
@@ -520,10 +541,11 @@ sub download # $_[0] is $id prefixed with the typemarker, $_[1] is $title
     { return; }
     $title .= ".$format";
   }
-  
+
+  unlink($title) if (defined $update);
   if ( ! -e "$title" )
   {
-    outget("$title");
+    (defined $update)? outupdate("$title"): outget("$title");
     if ( $title =~ m#^(.*)/[^/]+$# ) { make_path($1); }
     
     if ( system($wget, '-q', '-c', $url, '-O', $title.'._part', @wget_options) == 0 )
@@ -565,7 +587,7 @@ sub get_this # given url, downloads it
     $url .= ($url =~ m/\?/)? '&hl=en' : '?hl=en';
     my $F = `$wget -q '$url' -O - @wget_options`;
     my $title; html_title($F, $title);
-    download($id, $title);
+    download($id, 0, $title);
   }
 }
 
@@ -928,11 +950,41 @@ sub getidtitle  # is given the ids list file and returns a hash containing id-ti
 { # $_[0] is the name of the ids list file
   my %h;
   open FH, '<', $_[0] or return %h;
-  while(<FH>)
+
+  $_ = <FH>;
+  if ($_ =~ m|\t.*?\t|) # ids file is ID\tDATE\tTITLE
   {
-    m|^([^\t]+)\t(.*)$|;
-    $h{$1} = $2;
+    do {
+      $_ =~ m|^[^\t]+\t([^\t]+)\t(.*)$|;
+      $h{$1} = $2;
+    } while(<FH>);
+  } else { # ids file is ID\tTITLE
+    do {
+      $_ =~ m|^([^\t]+)\t(.*)$|;
+      $h{$1} = $2;
+    } while(<FH>);
   }
+
+  close FH;
+  return %h;
+}
+
+sub getiddate  # is given the ids list file and returns a hash containing id-date pairs
+{ # $_[0] is the name of the ids list file
+  my %h;
+  open FH, '<', $_[0] or return %h;
+
+  $_ = <FH>;
+  if ($_ =~ m|\t.*?\t|) # ids file is ID\tDATE\tTITLE
+  {
+    do {
+      $_ =~ m|^([^\t]+)\t([0-9]+)\t.*$|;
+      $h{$1} = $2;
+    } while(<FH>);
+  } else { # ids file is ID\tTITLE
+    %h = ();
+  }
+
   close FH;
   return %h;
 }
@@ -1038,10 +1090,12 @@ sub check_online_url
 
 sub outecho # echo the given string, surrounded by bold '*'s
 { print " \e[1m*\e[0m $_[0] \e[1m*\e[0m\n"; }
-#{ system('bash', '-c', "echo -n ' '; tput bold;echo -n '*';tput sgr0; echo -n \" ".$_[0]." \"; tput bold;echo '*';tput sgr0"); }
 
 sub outget # outecho for "Getting"-messages
 { print " \e[1m*\e[0m Getting \"$_[0]\" \e[1m*\e[0m "; }
+
+sub outupdate # outecho for "Updating"-messages
+{ print " \e[1m*\e[0m Updating \"$_[0]\" \e[1m*\e[0m "; }
 
 sub outdone # outecho for "Done"-messages
 { print "Done ($_[0]) \e[1m*\e[0m\n"; }
