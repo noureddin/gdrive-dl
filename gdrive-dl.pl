@@ -3,7 +3,7 @@
 # by NoUrEdDiN : noureddin@protonmail.com or noureddin95@gmail.com
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 
-# updated 16th, Mar, 2017; 2017.03.16
+# updated 17th, Mar, 2017; 2017.03.17
 
 # TODO (in the next few releases, hopefully):
 # - support updating gdrive-dl from itself (run `gdrive-dl update` to update the script itself).
@@ -24,7 +24,6 @@ if (grep /-ch|-ex/, @ARGV)
   eval "use Tie::RegexpHash"; # for chex; https://metacpan.org/pod/Tie::RegexpHash
   $chex = Tie::RegexpHash->new();
 }
-use HTTP::Tiny;
 
 use IO::Handle; STDOUT->autoflush(1); # to print on the same line; http://www.perlmonks.org/?node_id=699555
 
@@ -1060,8 +1059,7 @@ sub exit_with_error # because die() prints the file name and the line number
 
 sub check_internet_connection
 {
-  my $response = HTTP::Tiny->new->get('https://drive.google.com');
-  exit_with_error("Cannot connect to the Google Drive server; check your Internet connection!\n") if (not $response->{success});
+  exit_with_error("Cannot connect to the Google Drive server; check your Internet connection!\n") if (not check_online_url('https://drive.google.com'));
 }
 
 sub get_type # used with the IDs supplied by the user as arguments
@@ -1084,8 +1082,7 @@ sub get_type # used with the IDs supplied by the user as arguments
 
 sub check_online_url
 {
-  my $response = HTTP::Tiny->new->get($_[0]);
-  return $response->{success};
+  return `sh -c "$wget --server-response $_[0] 2>&1 | awk '/^  HTTP/{c=\\\$2}END{print c}'"` eq "200\n"; # PURIFY?
 }
 
 sub outecho # echo the given string, surrounded by bold '*'s
