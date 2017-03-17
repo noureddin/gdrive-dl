@@ -3,7 +3,7 @@
 # by NoUrEdDiN : noureddin@protonmail.com or noureddin95@gmail.com
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 
-# updated 17th, Mar, 2017; 2017.03.17
+# updated 18th, Mar, 2017; 2017.03.18
 
 # TODO (in the next few releases, hopefully):
 # - support updating gdrive-dl from itself (run `gdrive-dl update` to update the script itself).
@@ -55,6 +55,16 @@ my $gdl_cookiefile = '/tmp/gdrive-dl-'.`date +%s`; $gdl_cookiefile=~s/\n//; # TO
 my @wget_options = ('--load-cookie', $gdl_cookiefile, '--save-cookie', $gdl_cookiefile);
 my @confirm;
 
+if (grep /-tor/, @ARGV)
+{
+  # a REALLY quick and dirty solution; FIXME
+  # it prints the script, found here http://tor.stackexchange.com/a/12545/16708, to a /tmp file, and uses it as $wget
+  my $path = '/tmp/gdrive-dl-wget-tor';
+  `sh -c 'echo "#!/bin/sh" > $path; echo "unset http_proxy" >> $path; echo "unset HTTP_PROXY" >> $path; echo "unset https_proxy" >> $path; echo "unset HTTPS_PROXY" >> $path; echo "exec torsocks $wget --passive-ftp \\\"\\\$@\\\"" >> $path'`;
+  chmod(0755, $path);
+  $wget = $path;
+}
+
 # Reading Arguments
 if (defined $ARGV[0]) # TODO: use Getopt::Long; ?
 {
@@ -77,6 +87,7 @@ Commands:
   If you want to do something other than downloading, call gdrive-dl with one of
 these commands as the first argument.
   help, --help, -h, -?        print this help and exit
+  help-tor, --help-tor        print how to use gdrive-dl with tor, and exit
   confirm [FILES]             confirm and download either FILES if supplied, or all the big
                              files in the current folder recursively.
   confirm-check               print a list of the big files in the current folder recursively
@@ -90,10 +101,9 @@ these commands as the first argument.
 Options:
   -ch, --choose=NAME           specify a file or folder to download only it
   -ex, --exclude=NAME          specify a file or folder to skip downloading it
-  -f,  --force                 download (and complete) any non-downloaded files
+  -tor                         use gdrive-dl with tor, see help-tor above
   -ns, --no-scan               use the current IDs files and don't scan the online drive
                                use --no-scan with --force to complete downloading
-  -t,  --trash                 enable trashing for old files (NOT recommended now)
   -c,  --confirm[=FILE]        like 'confirm' command, but after downloading the drive
   -cc, --confirm-check         like 'confirm-check' command, but after downloading the drive
   -ad, --autodetect-dirs       download into a folder named the same as the given drive
@@ -111,9 +121,28 @@ Notes:
   - You can use many choose (or exclude) switches to choose (or exclude) many files/folders,
     but you cannot use both choose and exclude at the same time.
 
-License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+License GPLv3+: GNU GPL version 3 <http://gnu.org/licenses/gpl.html>.
 To get updates or send feedback: https://github.com/noureddin/gdrive-dl
 To contact the author: noureddin95@gmail.com
+HD
+    exit;
+  }
+  elsif ($ARGV[0] =~ /^help-tor|--help-tor$/)
+  {
+    print <<'HD';
+:: Installing and Configuring:
+------------------------------
+  You can use gdrive-dl with tor, if you have
+1. Tor Browser Bundle (downloadable from https://torproject.org/), and
+2. `torsocks` (could be obtained from your distro's repos).
+  To configure torsocks to work with you Tor Browser Bundle, run this
+command in the terminal:
+    sudo sed 's/^TorPort .*/TorPort 9150/' -i /etc/tor/torsocks.conf
+
+:: Running:
+-----------
+1. run Tor Browser Bundle, and leave it running
+2. run gdrive-dl with `-tor` switch
 HD
     exit;
   }
@@ -310,7 +339,7 @@ if (scalar @givenids == 0 and scalar @givenurls == 0) { @givenids = get_ids_dir(
 ## Getting the IDs
 getroot($_)  foreach (@givenids);
 get_this($_) foreach (@givenurls);
-unlink($gdl_cookiefile);
+clean_exit();
 
 # Functions
 
@@ -1053,6 +1082,7 @@ sub get_ids_dir
 
 sub exit_with_error # because die() prints the file name and the line number
 {
+  clean_exit();
   print STDERR $_[0];
   exit (defined $_[1])? $_[1] : 1; # TODO: exit codes
 }
@@ -1085,6 +1115,12 @@ sub check_online_url
   return `sh -c "$wget --server-response $_[0] 2>&1 | awk '/^  HTTP/{c=\\\$2}END{print c}'"` eq "200\n"; # PURIFY?
 }
 
+sub clean_exit
+{ # used on exit
+  unlink($gdl_cookiefile);
+  unlink('/tmp/gdrive-dl-wget-tor');
+}
+
 sub outecho # echo the given string, surrounded by bold '*'s
 { print " \e[1m*\e[0m $_[0] \e[1m*\e[0m\n"; }
 
@@ -1111,3 +1147,4 @@ sub outconfirm # output all caps "confirmation required" in bold red
 
 sub outwarn # output warnings to stderr, bold red for $_[0], then bold for $_[1]
 { print STDERR "\e[1;31m$_[0]\e[0m \e[1m$_[1]\e[0m\n"; }
+

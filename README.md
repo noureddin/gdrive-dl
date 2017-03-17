@@ -5,7 +5,7 @@ Google Drive Public Folder Mass Downloader
 
 License
 -------
-GPLv3+: GNU GPL version 3 or later (http://gnu.org/licenses/gpl.html).
+GPLv3+: GNU GPL version 3 (http://gnu.org/licenses/gpl.html).
 
 Installation
 ------------
@@ -21,7 +21,7 @@ chmod +x $HOME/.bin/gdrive-dl
 
 Requirements
 ------------
-Mainly Perl and Wget only, but also `grep` and `find` are used a few times.
+Mainly Perl and Wget, but other Unix tools like `grep`, `find`, or `awk` are used.
 
 Help (Usage)
 ----
@@ -41,24 +41,30 @@ Commands:
   If you want to do something other than downloading, call gdrive-dl with one of
 these commands as the first argument.
   help, --help, -h, -?        print this help and exit
+  help-tor, --help-tor        print how to use gdrive-dl with tor, and exit
   confirm [FILES]             confirm and download either FILES if supplied, or all the big
                              files in the current folder recursively.
   confirm-check               print a list of the big files in the current folder recursively
                              that are not yet confirmed and downloaded
+  confirm-ia                  interactive confirming; it prints all files that need confirm
+                             in the current folder, recursively, with the total file size,
+                             and you choose which files to confirm and download.
   list [ID]... [URL]...       print the contents of the folders given by theirs IDs or URLs
   list-nodups [ID]... [URL]...  like 'list' but without duplicate-checking
 
 Options:
   -ch, --choose=NAME           specify a file or folder to download only it
   -ex, --exclude=NAME          specify a file or folder to skip downloading it
-  -f,  --force                 download (and complete) any non-downloaded files
+  -tor                         use gdrive-dl with tor, see help-tor above
   -ns, --no-scan               use the current IDs files and don't scan the online drive
                                use --no-scan with --force to complete downloading
   -c,  --confirm[=FILE]        like 'confirm' command, but after downloading the drive
   -cc, --confirm-check         like 'confirm-check' command, but after downloading the drive
   -ad, --autodetect-dirs       download into a folder named the same as the given drive
-  -mso,--microsoft-office      download Google files as docx, pptx, and xlsx, not pdf
-  -odf,--opendocument-format   download Google files as odt, odp, and ods, not pdf
+  -mso,--microsoft-office      download Google files as docx, pptx, xlsx, and png, not pdf
+  -odf,--opendocument-format   download Google files as odt, odp, ods, and png, not pdf
+  -txt                         download Google files as txt, txt, csv, and svg, not pdf
+  -tsv                         with '-txt', download Google spreadsheets as tsv, not csv
   *                            anything else is passed to Wget as an option
 
 Notes:
@@ -69,10 +75,27 @@ Notes:
   - You can use many choose (or exclude) switches to choose (or exclude) many files/folders,
     but you cannot use both choose and exclude at the same time.
 
-License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+License GPLv3+: GNU GPL version 3 <http://gnu.org/licenses/gpl.html>.
 To get updates or send feedback: https://github.com/noureddin/gdrive-dl
 To contact the author: noureddin95@gmail.com
 </pre>
+
+### Using gdrive-dl with Tor
+#### Installing and Configuring:
+  You can use gdrive-dl with Tor, if you have
+
+1. Tor Browser Bundle (downloadable from https://torproject.org/), and
+2. `torsocks` (could be obtained from your distro's repos).
+
+  To configure torsocks to work with you Tor Browser Bundle, run this
+command in the terminal:
+
+    sudo sed 's/^TorPort .*/TorPort 9150/' -i /etc/tor/torsocks.conf
+
+#### Running:
+
+1. run Tor Browser Bundle, and leave it running
+2. run gdrive-dl with `-tor` switch
 
 Any contributions are appreciated.
 
@@ -80,9 +103,5 @@ Author
 ------------
 Nour eddin M. (noureddin95@gmail.com)
 
-####Resources used in `gdrive-dl`  
--  http://www.funbutlearn.com/2013/02/direct-download-link-to-your-google.html
--  http://www.labnol.org/internet/direct-links-for-google-drive/28356/
--  http://circulosmeos.wordpress.com/2014/04/12/google-drive-direct-download-of-big-files
--  http://mywiki.wooledge.org/BashPitfalls
+GPLv3 Code from [Circulosmeos](http://circulosmeos.wordpress.com/2014/04/12/google-drive-direct-download-of-big-files) is [modified](https://github.com/noureddin/gdrive-dl/blob/b04158a2d967ac5dfdca54b62ca78087d5c92114/gdown.pl) and included in gdrive-dl with more modification.
 
