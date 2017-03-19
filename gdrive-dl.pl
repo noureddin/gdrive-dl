@@ -3,7 +3,7 @@
 # by NoUrEdDiN : noureddin@protonmail.com or noureddin95@gmail.com
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 
-# updated 18th, Mar, 2017; 2017.03.18
+# updated 19th, Mar, 2017; 2017.03.19
 
 # TODO (in the next few releases, hopefully):
 # - support updating gdrive-dl from itself (run `gdrive-dl update` to update the script itself).
@@ -54,6 +54,7 @@ my $confirm_all;
 my $gdl_cookiefile = '/tmp/gdrive-dl-'.`date +%s`; $gdl_cookiefile=~s/\n//; # TODO: PURIFY; use only Perl functions
 my @wget_options = ('--load-cookie', $gdl_cookiefile, '--save-cookie', $gdl_cookiefile);
 my @confirm;
+my $ID;
 
 if (grep /-tor/, @ARGV)
 {
@@ -269,6 +270,11 @@ foreach (@ARGV)
   elsif (/^--force|-f$/)
   {
     $force = 1; # to force download all regardless of anything; usually used for testing, checking, or completing downloading
+    # now it's on by default for updating files if modified
+  }
+  elsif (/^--no-force|-nf$/)
+  {
+    undef $force; # for fixing a bug; see the commit msg for 2017.03.19
   }
   elsif (/^--no-scan|-ns$/)
   {
@@ -375,7 +381,7 @@ sub getroot
     outbold("Getting \"$title\"");
   }
   my $push = 1; # `push = 1` means `no ids file` means `push to arrays and download from them` NOT `compare the old file with the new`
-  my $ID = '.'.IDFILENAME.'_'.$id;
+  $ID = '.'.IDFILENAME.'_'.$id;
   if (not defined $no_scan)
   {
     if ( -e $ID )
@@ -462,13 +468,9 @@ sub getroot
       next unless (chex($oold{$_})); next if (/^F/); # we create a folder only if it has contents
       download($_, $dldates[$_], $onew{$_});
     }
-    #unlink($old); # DEBUG
   }
   else # means, if $push. it's the else of `if ! $push`
   {
-    #unlink("${ID}_old"); # DEBUG
-    undef $ID;
-
     # download all of them!
     for (0 .. $#dlids)
     {
@@ -484,7 +486,14 @@ sub getroot
 sub wgetfolder # $_[0] = the folder id, $_[1] = date, $_[2] = current path, $_[3] = push?, $_[4] = $F
 {
   my ($fid, $date, $path, $push) = @_;
-  if (defined $olddates{'F'.$fid} and $date == $olddates{'F'.$fid}) {return;} # nothing to do
+  if (defined $force and defined $olddates{'F'.$fid} and $date == $olddates{'F'.$fid})
+  {
+    # the folder is up-to-date, so we will not do anything.
+    # but we need to copy the data of its contents from the old ids file.
+    # this is a quick and dirty solution; PURIFY!
+    `grep '\t$path' "${ID}_old" >> "${ID}_"`;
+    return;
+  }
   print "\e[1K\rScanning $path";
   
   # First, getting IDs and Titles
@@ -1112,7 +1121,7 @@ sub get_type # used with the IDs supplied by the user as arguments
 
 sub check_online_url
 {
-  return `sh -c "$wget --server-response $_[0] 2>&1 | awk '/^  HTTP/{c=\\\$2}END{print c}'"` eq "200\n"; # PURIFY?
+  return `sh -c "$wget --server-response -O - $_[0] 2>&1 | awk '/^  HTTP/{c=\\\$2}END{print c}'"` eq "200\n"; # PURIFY?
 }
 
 sub clean_exit
@@ -1147,4 +1156,3 @@ sub outconfirm # output all caps "confirmation required" in bold red
 
 sub outwarn # output warnings to stderr, bold red for $_[0], then bold for $_[1]
 { print STDERR "\e[1;31m$_[0]\e[0m \e[1m$_[1]\e[0m\n"; }
-
