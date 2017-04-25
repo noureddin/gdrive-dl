@@ -486,14 +486,15 @@ sub getroot
 sub wgetfolder # $_[0] = the folder id, $_[1] = date, $_[2] = current path, $_[3] = push?, $_[4] = $F
 {
   my ($fid, $date, $path, $push) = @_;
-  if (defined $force and defined $olddates{'F'.$fid} and $date == $olddates{'F'.$fid})
-  {
-    # the folder is up-to-date, so we will not do anything.
-    # but we need to copy the data of its contents from the old ids file.
-    # this is a quick and dirty solution; PURIFY!
-    `grep '\t$path' "${ID}_old" >> "${ID}_"`;
-    return;
-  }
+  #if (defined $force and defined $olddates{'F'.$fid} and $date == $olddates{'F'.$fid})
+  #{
+  #  # the folder is up-to-date, so we will not do anything.
+  #  # but we need to copy the data of its contents from the old ids file.
+  #  # this is a quick and dirty solution; PURIFY!
+  #  `grep '\t$path' "${ID}_old" >> "${ID}_"`;
+  #  return;
+  #}
+  # It seems that this doesn't work, and we need to check the contents
   print "\e[1K\rScanning $path";
   
   # First, getting IDs and Titles
@@ -538,7 +539,7 @@ sub download # $_[0] is $id prefixed with the typemarker, $_[2] is $date, $_[1] 
   my ($id, $date, $title) = @_; my $url;
   
   my $update; # just a flag
-  if (%olddates and $date != 0)
+  if (%olddates and defined $olddates{$id} and $date != 0)
   {
     if ($date == $olddates{$id})
     {
@@ -1012,6 +1013,7 @@ sub getiddate  # is given the ids list file and returns a hash containing id-dat
   open FH, '<', $_[0] or return %h;
 
   $_ = <FH>;
+  if (not defined $_) { return %h; }
   if ($_ =~ m|\t.*?\t|) # ids file is ID\tDATE\tTITLE
   {
     do {
